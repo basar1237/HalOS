@@ -145,12 +145,13 @@ public sealed class PartyTests
     }
 
     [Fact]
-    public void Register_Producer_RaisesProducerWithholdingProfileChanged_WithPartyRates()
+    public void Register_Producer_RaisesProducerWithholdingProfileChanged_WithPartyRatesAndKeepsRecords()
     {
-        // Müstahsil profiliyle kayıt Sales oran senkronu event'ini raise etmeli (docs/02 §6).
+        // Müstahsil profiliyle kayıt Sales oran senkronu + Integration e-MM kararı event'ini
+        // raise etmeli; oranlar VE KeepsRecords taşınmalı (docs/02 §6, §1.3 / BK-4).
         var result = PartyAggregate.Register(
             Guid.NewGuid(), "Mustahsil Veli", "12345678901", null, null, null, null,
-            keepsRecords: false, withholdingProfile: WithholdingProfile.Create(0.0300m, 0.0150m).Value,
+            keepsRecords: true, withholdingProfile: WithholdingProfile.Create(0.0300m, 0.0150m).Value,
             roles: new[] { PartyRoleType.Producer });
 
         result.IsSuccess.Should().BeTrue();
@@ -159,6 +160,7 @@ public sealed class PartyTests
         evt.TenantId.Should().Be(result.Value.TenantId);
         evt.AgriWithholdingRate.Should().Be(0.0300m);
         evt.FarmerSskRate.Should().Be(0.0150m);
+        evt.KeepsRecords.Should().BeTrue();
     }
 
     [Fact]
@@ -186,12 +188,15 @@ public sealed class PartyTests
         var evt = producer.DomainEvents.OfType<ProducerWithholdingProfileChanged>().Should().ContainSingle().Subject;
         evt.AgriWithholdingRate.Should().Be(0.0400m);
         evt.FarmerSskRate.Should().Be(0.0250m);
+        evt.KeepsRecords.Should().BeFalse();
     }
 
     [Fact]
-    public void Update_ProducerProfileUnchanged_DoesNotRaiseProfileChanged()
+    public void Update_ProducerProfileUnchanged_StillRaisesProfileChanged_WithKeepsRecords()
     {
-        // Aynı oranlar tekrar verilirse (structural equality) gereksiz senkron event'i çıkmaz.
+        // Oranlar aynı kalsa bile müstahsil güncellemesi her seferinde event raise etmeli:
+        // Integration servisinin e-MM kararı için güncel KeepsRecords bilgisine ihtiyacı var
+        // (docs/02 §1.3 / BK-4). Burada KeepsRecords false → true değişimi taşınmalı.
         var producer = PartyAggregate.Register(
             Guid.NewGuid(), "Mustahsil", "12345678901", null, null, null, null,
             keepsRecords: false, withholdingProfile: Profile(),
@@ -203,7 +208,10 @@ public sealed class PartyTests
             withholdingProfile: WithholdingProfile.Create(0.0200m, 0.0100m).Value);
 
         result.IsSuccess.Should().BeTrue();
-        producer.DomainEvents.OfType<ProducerWithholdingProfileChanged>().Should().BeEmpty();
+        var evt = producer.DomainEvents.OfType<ProducerWithholdingProfileChanged>().Should().ContainSingle().Subject;
+        evt.AgriWithholdingRate.Should().Be(0.0200m);
+        evt.FarmerSskRate.Should().Be(0.0100m);
+        evt.KeepsRecords.Should().BeTrue();
     }
 
     [Fact]

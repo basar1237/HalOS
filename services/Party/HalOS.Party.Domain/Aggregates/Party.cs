@@ -198,10 +198,6 @@ public sealed class Party : AggregateRoot<Guid>, ITenantOwned
             return Result.Failure(PartyErrors.ProducerRequiresWithholdingProfile);
         }
 
-        // Profil GERÇEKTEN değiştiyse (structural equality — ValueObject) Sales senkronu için
-        // event yayınlayacağız; gereksiz mesajdan kaçınmak için önce kıyasla.
-        var profileChanged = !Equals(WithholdingProfile, withholdingProfile);
-
         DisplayName = normalizedName;
         TaxOffice = Normalize(taxOffice);
         Phone = Normalize(phone);
@@ -209,12 +205,11 @@ public sealed class Party : AggregateRoot<Guid>, ITenantOwned
         KeepsRecords = keepsRecords;
         WithholdingProfile = withholdingProfile;
 
-        // Müstahsilin oran profili değiştiyse Sales okuma modelini güncellemek için cross-service
-        // event yayınla (hakediş doğruluğu — docs/02 §6). Profil Producer değişmezi gereği dolu.
-        if (profileChanged)
-        {
-            RaiseWithholdingProfileChangedIfProducer();
-        }
+        // Müstahsil güncellendiğinde her seferinde cross-service event yayınla (yalnız oran
+        // değişiminde DEĞİL): Integration servisinin e-MM kararı için müstahsilin güncel
+        // KeepsRecords bilgisine ihtiyacı var (BK-4), Sales de okuma modelini senkronlar
+        // (hakediş doğruluğu — docs/02 §6). Profil Producer değişmezi gereği dolu.
+        RaiseWithholdingProfileChangedIfProducer();
 
         return Result.Success();
     }
@@ -263,8 +258,11 @@ public sealed class Party : AggregateRoot<Guid>, ITenantOwned
     /// Taraf müstahsil (Producer) ise ve stopaj profili tanımlıysa
     /// <see cref="ProducerWithholdingProfileChanged"/> cross-service event'ini raise eder —
     /// Sales servisi oran okuma modelini (ProducerRateProfile) günceller (docs/02 §6, hakediş
-    /// doğruluğu). Event outbox'a atomik yazılır (SaveChanges yazıcısı otomatik alır — docs/04 §10).
-    /// Yalnızca Party'de GERÇEKTEN var olan oranları (zirai stopaj + çiftçi Bağ-Kur) taşır.
+    /// doğruluğu), Integration servisi ise e-MM kararı için müstahsilin kayıt tutma durumunu alır
+    /// (docs/02 §1.3, BK-4). Event outbox'a atomik yazılır (SaveChanges yazıcısı otomatik alır —
+    /// docs/04 §10). Party'de GERÇEKTEN var olan oranları (zirai stopaj + çiftçi Bağ-Kur) ve
+    /// e-MM gerekliliğini belirleyen <see cref="KeepsRecords"/> bilgisini taşır. Müstahsil
+    /// olmayan Party'ler için hiçbir şey yapmaz.
     /// </summary>
     private void RaiseWithholdingProfileChangedIfProducer()
     {
@@ -278,6 +276,7 @@ public sealed class Party : AggregateRoot<Guid>, ITenantOwned
             Id,
             WithholdingProfile.AgriWithholdingRate,
             WithholdingProfile.FarmerSskRate,
+            KeepsRecords,
             DateTime.UtcNow));
     }
 

@@ -208,6 +208,39 @@ services:
     networks:
       - halos
 
+  # Integration (e-Belge & Yasal Entegrasyon) — HKS + GİB e-belge servisi (ADR-007).
+  #   docker compose --profile apps up -d integration
+  # Integration, SaleCompleted + ProducerWithholdingProfileChanged'i RabbitMQ'dan tüketir; kayıt
+  # tutmayan müstahsil için e-MM üretir (BK-4) ve halos_integration DB'sine yazar.
+  integration:
+    profiles: ["apps"]
+    build:
+      context: ..
+      dockerfile: services/Integration/HalOS.Integration.Api/Dockerfile
+    container_name: halos-integration
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      # IntegrationDb: servis kendi DB'sine (halos_integration) bağlanır (ADR-006).
+      ConnectionStrings__IntegrationDb: "Host=postgres;Port=5432;Database=halos_integration;Username=${POSTGRES_USER:-halos};Password=${POSTGRES_PASSWORD:-halos_dev_pw}"
+      # Event bus (ADR-006/ADR-007): SaleCompleted + ProducerWithholdingProfileChanged tüketimi + ProducerReceiptIssued yayını.
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: "/"
+      RabbitMq__Username: ${RABBITMQ_USER:-halos}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:-halos_dev_pw}
+      # JWT imza anahtarı üretimde Vault/ortam değişkeninden gelir (docs/04 §7).
+      Jwt__SigningKey: ${INTEGRATION_JWT_SIGNING_KEY:-dev-only-signing-key-change-me-please-0123456789abcdef}
+    ports:
+      - "${INTEGRATION_PORT:-5075}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - halos
+
 volumes:
   postgres-data:
   redis-data:

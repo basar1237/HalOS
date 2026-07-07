@@ -248,6 +248,10 @@ public sealed class SaleTransaction : AggregateRoot<Guid>, ITenantOwned
             SoldAt,
             calculation.Gross,
             calculation.Commission,
+            // e-MM YALNIZ stopaj + Bağ-Kur içerir (BK-1/BK-4); Integration servisi bu iki alanı
+            // yeniden hesaplamadan kullanır (docs/02 §1.3, docs/04 §10).
+            calculation.AgriWithholding,
+            calculation.FarmerSsk,
             calculation.TotalDeductions,
             calculation.Net,
             dueDate,

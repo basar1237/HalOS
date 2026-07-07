@@ -57,6 +57,8 @@ public sealed class SaleCompletedConsumerTests
             SoldAt: new DateTime(2026, 7, 6, 10, 0, 0, DateTimeKind.Utc),
             GrossAmount: 100.00m,
             CommissionAmount: 8.00m,
+            AgriWithholdingAmount: 2.00m,
+            FarmerSskAmount: 1.00m,
             TotalDeductions: 12.00m,
             NetAmount: 88.00m,
             SettlementDueDate: new DateTime(2026, 7, 28),

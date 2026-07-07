@@ -12,7 +12,19 @@ namespace HalOS.BuildingBlocks.Contracts;
 /// <see cref="ITenantScopedEvent"/>'i uygular: broker üzerinden geçerken tenant bağlamı
 /// mesajın kendisiyle taşınır, consumer <see cref="TenantId"/>'yi ambient tenant'a set eder
 /// (docs/07 §6 / BK-8).
+///
+/// <para>
+/// Kesinti kırılımı (<see cref="AgriWithholdingAmount"/> + <see cref="FarmerSskAmount"/>) ayrıca
+/// taşınır: e-Müstahsil Makbuzu (e-MM) YALNIZ stopaj + çiftçi Bağ-Kur içerir (komisyon/rüsum/KDV
+/// e-MM'e GİRMEZ — docs/02 §1.3, BK-1/BK-4). <see cref="TotalDeductions"/> ise hakedişten düşülen
+/// TÜM kalemleri (komisyon + stopaj + bağkur + rüsum) kapsar; dolayısıyla e-MM'i doğru kurmak için
+/// yeterli DEĞİLDİR. Bu iki alan Sales'in zaten hesapladığı (<c>SettlementCalculation</c>) tutarlardır;
+/// event'le taşınarak Integration servisi e-MM'i YENİDEN HESAPLAMADAN, tekil sorgu yapmadan kurar
+/// (docs/04 §10 event-taşımalı entegrasyon; docs/07 §5 consumer içinde iş kararı, dış hesap yok).
+/// </para>
 /// </summary>
+/// <param name="AgriWithholdingAmount">Zirai stopaj kesinti tutarı (docs/02 §1.3) — e-MM'e girer.</param>
+/// <param name="FarmerSskAmount">Çiftçi Bağ-Kur (SGK) primi kesinti tutarı (docs/02 §1.3) — e-MM'e girer.</param>
 public sealed record SaleCompleted(
     Guid SaleTransactionId,
     Guid TenantId,
@@ -21,6 +33,8 @@ public sealed record SaleCompleted(
     DateTime SoldAt,
     decimal GrossAmount,
     decimal CommissionAmount,
+    decimal AgriWithholdingAmount,
+    decimal FarmerSskAmount,
     decimal TotalDeductions,
     decimal NetAmount,
     DateTime SettlementDueDate,

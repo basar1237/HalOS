@@ -55,7 +55,8 @@ public sealed class ProducerWithholdingProfileChangedConsumerTests
             ctx, NullLogger<ProducerWithholdingProfileChangedConsumer>.Instance);
 
         await consumer.Consume(ContextFor(new ProducerWithholdingProfileChanged(
-            tenantId, producerId, AgriWithholdingRate: 0.02m, FarmerSskRate: 0.01m, DateTime.UtcNow)));
+            tenantId, producerId, AgriWithholdingRate: 0.02m, FarmerSskRate: 0.01m,
+            KeepsRecords: false, DateTime.UtcNow)));
 
         var profiles = await ctx.ProducerRateProfiles.ToListAsync();
         profiles.Should().ContainSingle();
@@ -79,7 +80,7 @@ public sealed class ProducerWithholdingProfileChangedConsumerTests
             var consumer = new ProducerWithholdingProfileChangedConsumer(
                 ctx, NullLogger<ProducerWithholdingProfileChangedConsumer>.Instance);
             await consumer.Consume(ContextFor(new ProducerWithholdingProfileChanged(
-                tenantId, producerId, 0.02m, 0.01m, DateTime.UtcNow)));
+                tenantId, producerId, 0.02m, 0.01m, KeepsRecords: false, DateTime.UtcNow)));
         }
 
         // İkinci olay (yeni oranlar): mevcut satırı güncelle, yeni satır açma.
@@ -88,7 +89,8 @@ public sealed class ProducerWithholdingProfileChangedConsumerTests
             var consumer = new ProducerWithholdingProfileChangedConsumer(
                 ctx, NullLogger<ProducerWithholdingProfileChangedConsumer>.Instance);
             await consumer.Consume(ContextFor(new ProducerWithholdingProfileChanged(
-                tenantId, producerId, AgriWithholdingRate: 0.05m, FarmerSskRate: 0.03m, DateTime.UtcNow)));
+                tenantId, producerId, AgriWithholdingRate: 0.05m, FarmerSskRate: 0.03m,
+                KeepsRecords: false, DateTime.UtcNow)));
         }
 
         await using (var ctx = CreateContext(stub, dbName))
@@ -120,7 +122,8 @@ public sealed class ProducerWithholdingProfileChangedConsumerTests
             var consumer = new ProducerWithholdingProfileChangedConsumer(
                 ctx, NullLogger<ProducerWithholdingProfileChangedConsumer>.Instance);
             await consumer.Consume(ContextFor(new ProducerWithholdingProfileChanged(
-                tenantId, producerId, AgriWithholdingRate: 0.05m, FarmerSskRate: 0.03m, newer)));
+                tenantId, producerId, AgriWithholdingRate: 0.05m, FarmerSskRate: 0.03m,
+                KeepsRecords: false, newer)));
         }
 
         // Sonra ESKİ event gelir (sıra-dışı teslimat) — yok sayılmalı.
@@ -129,7 +132,8 @@ public sealed class ProducerWithholdingProfileChangedConsumerTests
             var consumer = new ProducerWithholdingProfileChangedConsumer(
                 ctx, NullLogger<ProducerWithholdingProfileChangedConsumer>.Instance);
             await consumer.Consume(ContextFor(new ProducerWithholdingProfileChanged(
-                tenantId, producerId, AgriWithholdingRate: 0.02m, FarmerSskRate: 0.01m, older)));
+                tenantId, producerId, AgriWithholdingRate: 0.02m, FarmerSskRate: 0.01m,
+                KeepsRecords: false, older)));
         }
 
         await using (var ctx = CreateContext(stub, dbName))
