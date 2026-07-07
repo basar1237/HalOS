@@ -139,6 +139,33 @@ public sealed class SaleTransactionTests
     }
 
     [Fact]
+    public void Create_DefaultTerm_IsCash()
+    {
+        NewDraft().Term.Should().Be(SaleTerm.Cash);
+    }
+
+    [Fact]
+    public void Complete_DeferredTerm_SettlementDueDate_IsThirtyCalendarDays()
+    {
+        // Vadeli satış (BK-3): ödeme 30 TAKVİM günü içinde (iş günü değil — hafta sonu/tatil atlanmaz).
+        var sale = SaleTransaction.Create(
+            _tenantId, _buyerId, _producerId, consignmentId: null,
+            SoldAt, isWithinMarket: true, operationId: Guid.NewGuid(), createdBy: _userId,
+            term: SaleTerm.Deferred).Value;
+        sale.AddLine(_productId, 100m, UnitOfMeasure.Kilogram, 1m);
+
+        var result = sale.Complete(WithinMarketRates());
+
+        result.IsSuccess.Should().BeTrue();
+        // 2026-07-06 + 30 takvim günü = 2026-08-05 (iş günü hesabı YAPILMAZ).
+        sale.Settlement!.DueDate.Should().Be(SoldAt.AddDays(SaleTransaction.DeferredDueCalendarDays));
+        sale.Settlement.DueDate.Date.Should().Be(new DateTime(2026, 8, 5));
+
+        var evt = sale.DomainEvents.OfType<SaleCompleted>().Single();
+        evt.SettlementDueDate.Should().Be(SoldAt.AddDays(SaleTransaction.DeferredDueCalendarDays));
+    }
+
+    [Fact]
     public void Complete_NoLines_Fails()
     {
         var sale = NewDraft();

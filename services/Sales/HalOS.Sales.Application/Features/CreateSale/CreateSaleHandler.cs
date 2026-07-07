@@ -44,7 +44,8 @@ internal sealed class CreateSaleHandler : ICommandHandler<CreateSaleCommand, Gui
             request.SoldAt,
             request.IsWithinMarket,
             request.OperationId,
-            _currentUser.UserId);
+            _currentUser.UserId,
+            request.Term);
 
         if (result.IsFailure)
         {

@@ -10,14 +10,18 @@ public sealed record ReceiveConsignmentRequest(
     string? DispatchNoteRef,
     IReadOnlyList<ConsignmentItemInput> Items);
 
-/// <summary>Satış oluşturma isteği (docs/03 M4). OperationId offline idempotency içindir (docs/04 §5).</summary>
+/// <summary>
+/// Satış oluşturma isteği (docs/03 M4). OperationId offline idempotency içindir (docs/04 §5).
+/// Term belirtilmezse peşin (<see cref="SaleTerm.Cash"/>) kabul edilir (BK-3).
+/// </summary>
 public sealed record CreateSaleRequest(
     Guid BuyerPartyId,
     Guid ProducerPartyId,
     Guid? ConsignmentId,
     DateTime SoldAt,
     bool IsWithinMarket,
-    Guid OperationId);
+    Guid OperationId,
+    SaleTerm? Term = null);
 
 /// <summary>Satış satırı ekleme isteği (docs/03 M4).</summary>
 public sealed record AddSaleLineRequest(

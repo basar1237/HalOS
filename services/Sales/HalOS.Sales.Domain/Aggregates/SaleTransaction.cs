@@ -34,6 +34,7 @@ public sealed class SaleTransaction : AggregateRoot<Guid>, ITenantOwned
         Guid? consignmentId,
         DateTime soldAt,
         bool isWithinMarket,
+        SaleTerm term,
         Guid operationId,
         Guid createdBy,
         DateTime createdOnUtc)
@@ -45,6 +46,7 @@ public sealed class SaleTransaction : AggregateRoot<Guid>, ITenantOwned
         ConsignmentId = consignmentId;
         SoldAt = soldAt;
         IsWithinMarket = isWithinMarket;
+        Term = term;
         OperationId = operationId;
         CreatedBy = createdBy;
         CreatedOnUtc = createdOnUtc;
@@ -76,6 +78,9 @@ public sealed class SaleTransaction : AggregateRoot<Guid>, ITenantOwned
 
     /// <summary>Hal içi/dışı satış → rüsum oranı %1/%2 (docs/05 §3.5, BK-5).</summary>
     public bool IsWithinMarket { get; private set; }
+
+    /// <summary>Ödeme vadesi türü (peşin/vadeli) — hakediş vade tarihini belirler (BK-3).</summary>
+    public SaleTerm Term { get; private set; }
 
     public SaleStatus Status { get; private set; }
 
@@ -115,7 +120,8 @@ public sealed class SaleTransaction : AggregateRoot<Guid>, ITenantOwned
         DateTime soldAt,
         bool isWithinMarket,
         Guid operationId,
-        Guid createdBy)
+        Guid createdBy,
+        SaleTerm term = SaleTerm.Cash)
     {
         if (buyerPartyId == Guid.Empty)
         {
@@ -137,6 +143,7 @@ public sealed class SaleTransaction : AggregateRoot<Guid>, ITenantOwned
             consignmentId,
             soldAt,
             isWithinMarket,
+            term,
             effectiveOperationId,
             createdBy,
             DateTime.UtcNow);
@@ -181,9 +188,10 @@ public sealed class SaleTransaction : AggregateRoot<Guid>, ITenantOwned
     /// CommissionCalculation + Deduction'lar (commission/agri_withholding/farmer_ssk/market_fee/vat)
     /// + Settlement üretilir; <see cref="SaleCompleted"/> event'i yayınlanır.
     ///
-    /// Hakediş vade tarihi = <see cref="SoldAt"/> + 15 iş günü (hafta sonu atlanır; resmi tatil
-    /// kapsam dışı — <see cref="BusinessDayCalculator"/> notu, BK-3). Net negatif çıkarsa
-    /// <c>Settlement.Create</c> reddeder ve Complete hatayla döner (değişmez korunur).
+    /// Hakediş vade tarihi (BK-3): peşin (<see cref="SaleTerm.Cash"/>) satışta <see cref="SoldAt"/>
+    /// + 15 iş günü (hafta sonu + Türk resmi tatilleri atlanır — <see cref="BusinessDayCalculator"/>);
+    /// vadeli (<see cref="SaleTerm.Deferred"/>) satışta <see cref="SoldAt"/> + 30 takvim günü. Net
+    /// negatif çıkarsa <c>Settlement.Create</c> reddeder ve Complete hatayla döner (değişmez korunur).
     /// </summary>
     public Result Complete(RateSet rates)
     {
@@ -206,8 +214,11 @@ public sealed class SaleTransaction : AggregateRoot<Guid>, ITenantOwned
 
         var calculation = SettlementCalculator.Calculate(GrossAmount, rates);
 
-        // Hakediş vadesi: satış + 15 iş günü (BK-3). Hafta sonu atlanır; resmi tatil MVP dışı.
-        var dueDate = BusinessDayCalculator.AddBusinessDays(SoldAt, SettlementDueBusinessDays);
+        // Hakediş vadesi (BK-3): peşin → +15 iş günü (hafta sonu + resmi tatil atlanır);
+        // vadeli → +30 takvim günü.
+        var dueDate = Term == SaleTerm.Deferred
+            ? SoldAt.AddDays(DeferredDueCalendarDays)
+            : BusinessDayCalculator.AddBusinessDays(SoldAt, SettlementDueBusinessDays);
 
         var settlementResult = Settlement.Create(Id, TenantId, calculation.Net, dueDate);
         if (settlementResult.IsFailure)
@@ -269,8 +280,11 @@ public sealed class SaleTransaction : AggregateRoot<Guid>, ITenantOwned
         return Result.Success();
     }
 
-    /// <summary>Müstahsile ödeme süresi (docs/03 §4 BK-3): normal satışta 15 iş günü.</summary>
+    /// <summary>Müstahsile ödeme süresi (docs/03 §4 BK-3): peşin satışta 15 iş günü.</summary>
     public const int SettlementDueBusinessDays = 15;
+
+    /// <summary>Müstahsile ödeme süresi (docs/03 §4 BK-3): vadeli satışta 30 takvim günü.</summary>
+    public const int DeferredDueCalendarDays = 30;
 
     private void RecalculateGross() =>
         GrossAmount = Money.RoundToKurus(_lines.Sum(l => l.LineAmount));

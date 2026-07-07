@@ -28,6 +28,7 @@ internal sealed class SaleTransactionConfiguration : IEntityTypeConfiguration<Sa
         builder.Property(s => s.SoldAt).HasColumnName("sold_at");
         builder.Property(s => s.GrossAmount).HasColumnName("gross_amount").HasColumnType("numeric(18,2)");
         builder.Property(s => s.IsWithinMarket).HasColumnName("is_within_market");
+        builder.Property(s => s.Term).HasColumnName("term").HasConversion<string>();
         builder.Property(s => s.Status).HasColumnName("status").HasConversion<string>();
         builder.Property(s => s.OperationId).HasColumnName("operation_id");
         builder.Property(s => s.IsCancelled).HasColumnName("is_cancelled");

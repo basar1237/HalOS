@@ -6,6 +6,7 @@ using HalOS.Sales.Application.Features.CompleteSale;
 using HalOS.Sales.Application.Features.CreateSale;
 using HalOS.Sales.Application.Features.GetSale;
 using HalOS.Sales.Application.Features.ListSales;
+using HalOS.Sales.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -42,7 +43,8 @@ public sealed class SalesController : ControllerBase
             request.ConsignmentId,
             request.SoldAt,
             request.IsWithinMarket,
-            request.OperationId);
+            request.OperationId,
+            request.Term ?? SaleTerm.Cash);
 
         var result = await _sender.Send(command, cancellationToken);
         if (result.IsFailure)
