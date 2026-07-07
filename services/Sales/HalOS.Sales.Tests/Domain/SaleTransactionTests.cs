@@ -118,9 +118,14 @@ public sealed class SaleTransactionTests
         evt.NetAmount.Should().Be(88.00m);
         evt.GrossAmount.Should().Be(100.00m);
         evt.CommissionAmount.Should().Be(8.00m);
+        // Komisyon KDV'si (BK-1): komisyon 8,00 × %20 = 1,60; hakedişten düşülmez, e-Fatura'da kullanılır.
+        evt.CommissionVatAmount.Should().Be(1.60m);
         // e-MM kırılımı: yalnız stopaj + Bağ-Kur taşınır (Integration servisi e-MM için kullanır).
         evt.AgriWithholdingAmount.Should().Be(2.00m);
         evt.FarmerSskAmount.Should().Be(1.00m);
+        // Hal rüsumu AYRI taşınır (docs/02 §7, BK-5): HKS bildirimi + rüsum belgesi yeniden hesaplamadan
+        // kurar; TotalDeductions içinde gömülü ama ayrıştırılamaz.
+        evt.MarketFeeAmount.Should().Be(1.00m); // hal içi %1
         evt.TotalDeductions.Should().Be(12.00m); // KDV hariç.
         // Vade = satış + 15 iş günü (BK-3): 2026-07-06 Pzt başlangıç; aralıkta 15 Temmuz
         // (Demokrasi ve Millî Birlik Günü) resmi tatili atlanır → 2026-07-28 Salı.

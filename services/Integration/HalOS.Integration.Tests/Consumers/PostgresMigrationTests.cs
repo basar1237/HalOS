@@ -7,7 +7,8 @@ namespace HalOS.Integration.Tests.Consumers;
 
 /// <summary>
 /// Gerçek Postgres'e karşı migration uygulanabilirliğini doğrular (producer_receipt / receipt_deduction /
-/// producer_tax_profile / outbox_message tabloları + indeksler dahil). HALOS_TEST_POSTGRES ortam
+/// invoice / hks_notification / producer_tax_profile / outbox_message tabloları + indeksler dahil).
+/// HALOS_TEST_POSTGRES ortam
 /// değişkeni yoksa SKIP edilir (docs/07 §7). Bağlantı dizesi HALOS_TEST_POSTGRES_CONN ile geçersiz
 /// kılınabilir. Finance/Sales/Party deseniyle birebir.
 /// </summary>

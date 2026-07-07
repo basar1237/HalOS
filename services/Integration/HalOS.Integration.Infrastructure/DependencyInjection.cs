@@ -34,6 +34,8 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<IntegrationDbContext>());
 
         services.AddScoped<IProducerReceiptRepository, ProducerReceiptRepository>();
+        services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+        services.AddScoped<IHksNotificationRepository, HksNotificationRepository>();
         services.AddScoped<IProducerTaxProfileReader, ProducerTaxProfileReader>();
         services.AddScoped<IProducerTaxProfileWriter, ProducerTaxProfileWriter>();
 

@@ -25,6 +25,10 @@ public sealed class IntegrationDbContext : TenantDbContextBase, IUnitOfWork
 
     public DbSet<ProducerReceipt> ProducerReceipts => Set<ProducerReceipt>();
 
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+
+    public DbSet<HksNotification> HksNotifications => Set<HksNotification>();
+
     public DbSet<ProducerTaxProfile> ProducerTaxProfiles => Set<ProducerTaxProfile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

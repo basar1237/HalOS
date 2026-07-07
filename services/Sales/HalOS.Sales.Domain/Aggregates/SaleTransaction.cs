@@ -248,10 +248,16 @@ public sealed class SaleTransaction : AggregateRoot<Guid>, ITenantOwned
             SoldAt,
             calculation.Gross,
             calculation.Commission,
+            // Komisyon KDV'si (docs/02 §4/BK-1): komisyoncunun geliridir, hakedişten düşülmez;
+            // e-MM'e GİRMEZ, yalnız komisyon e-Faturasında (Integration Invoice akışı) kullanılır.
+            calculation.VatOnCommission,
             // e-MM YALNIZ stopaj + Bağ-Kur içerir (BK-1/BK-4); Integration servisi bu iki alanı
             // yeniden hesaplamadan kullanır (docs/02 §1.3, docs/04 §10).
             calculation.AgriWithholding,
             calculation.FarmerSsk,
+            // Hal rüsumu AYRI taşınır (docs/02 §7): HKS bildirimi + MarketFeeRecord (BK-5) rüsumu
+            // yeniden hesaplamadan kurar (TotalDeductions içinde gömülü ama ayrıştırılamaz).
+            calculation.MarketFee,
             calculation.TotalDeductions,
             calculation.Net,
             dueDate,

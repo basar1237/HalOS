@@ -25,6 +25,19 @@ namespace HalOS.BuildingBlocks.Contracts;
 /// </summary>
 /// <param name="AgriWithholdingAmount">Zirai stopaj kesinti tutarı (docs/02 §1.3) — e-MM'e girer.</param>
 /// <param name="FarmerSskAmount">Çiftçi Bağ-Kur (SGK) primi kesinti tutarı (docs/02 §1.3) — e-MM'e girer.</param>
+/// <param name="MarketFeeAmount">Hal rüsumu kesinti tutarı = Round(gross × marketFeeRate, 2) (docs/02 §1.3
+/// / BK-5). Belediyeye ödenen pazar rüsumudur (hal içi %1, hal dışı %2). Komisyon ve rüsum yasal olarak
+/// AYRI saklanır — tek "fee" altında birleştirilmez (docs/02 §7 anti-pattern). <see cref="TotalDeductions"/>
+/// rüsumu İÇERİR ama ayrıştırılamaz; HKS bildirimi ve <c>MarketFeeRecord</c> (BK-5, belediyeye 5 iş günü)
+/// rüsum tutarını AYRI gerektirdiğinden ve consumer içinde yeniden hesap YASAK olduğundan (docs/07 §5)
+/// ayrı taşınır. Sales'in zaten hesapladığı (<c>SettlementCalculation.MarketFee</c>) tutardır; event'le
+/// taşınarak Integration servisi HKS/rüsum belgelerini yeniden hesaplamadan kurar (docs/04 §10).</param>
+/// <param name="CommissionVatAmount">Komisyon üzerine hesaplanan KDV tutarı = Round(komisyon × KDV oranı, 2)
+/// (docs/02 §4 / BK-1). Komisyoncunun geliridir; hakedişten DÜŞÜLMEZ (bu yüzden
+/// <see cref="TotalDeductions"/>'a dahil değildir) ve e-MM'e GİRMEZ — yalnız e-Fatura tarafında
+/// (Integration servisi Invoice akışı) kullanılır. Sales'in zaten hesapladığı
+/// (<c>SettlementCalculation.VatOnCommission</c>) tutardır; event'le taşınarak alıcıya kesilecek
+/// komisyon e-Faturasının KDV'si yeniden hesaplanmadan kurulur (docs/04 §10).</param>
 public sealed record SaleCompleted(
     Guid SaleTransactionId,
     Guid TenantId,
@@ -33,8 +46,10 @@ public sealed record SaleCompleted(
     DateTime SoldAt,
     decimal GrossAmount,
     decimal CommissionAmount,
+    decimal CommissionVatAmount,
     decimal AgriWithholdingAmount,
     decimal FarmerSskAmount,
+    decimal MarketFeeAmount,
     decimal TotalDeductions,
     decimal NetAmount,
     DateTime SettlementDueDate,

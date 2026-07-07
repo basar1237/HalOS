@@ -40,13 +40,37 @@ public sealed class SaleCompletedConsumerTests
     private sealed class FakeGateway : IEDocumentGateway
     {
         public int SendCount { get; private set; }
+        public int InvoiceCount { get; private set; }
+        public int HksCount { get; private set; }
 
         public Task<Result<string>> SendProducerReceiptAsync(ProducerReceipt receipt, CancellationToken cancellationToken = default)
         {
             SendCount++;
             return Task.FromResult<Result<string>>($"EMM-TEST-{SendCount:D4}");
         }
+
+        public Task<Result<string>> SendInvoiceAsync(Invoice invoice, CancellationToken cancellationToken = default)
+        {
+            InvoiceCount++;
+            return Task.FromResult<Result<string>>($"EFA-TEST-{InvoiceCount:D4}");
+        }
+
+        public Task<Result<string>> SendHksNotificationAsync(HksNotification notification, CancellationToken cancellationToken = default)
+        {
+            HksCount++;
+            return Task.FromResult<Result<string>>($"HKS-TEST-{HksCount:D4}");
+        }
     }
+
+    private static SaleCompletedConsumer NewConsumer(IntegrationDbContext ctx, FakeGateway gateway) =>
+        new(
+            new ProducerReceiptRepository(ctx),
+            new InvoiceRepository(ctx),
+            new HksNotificationRepository(ctx),
+            new ProducerTaxProfileReader(ctx),
+            gateway,
+            ctx,
+            NullLogger<SaleCompletedConsumer>.Instance);
 
     private static IntegrationDbContext CreateContext(ITenantContext tenantContext, string dbName)
     {
@@ -73,8 +97,10 @@ public sealed class SaleCompletedConsumerTests
             SoldAt: new DateTime(2026, 7, 6, 10, 0, 0, DateTimeKind.Utc),
             GrossAmount: 100.00m,
             CommissionAmount: 8.00m,
+            CommissionVatAmount: 1.60m,
             AgriWithholdingAmount: 2.00m,
             FarmerSskAmount: 1.00m,
+            MarketFeeAmount: 1.00m,
             TotalDeductions: 12.00m,
             NetAmount: 88.00m,
             SettlementDueDate: new DateTime(2026, 7, 28),
@@ -100,12 +126,7 @@ public sealed class SaleCompletedConsumerTests
         SeedProfile(ctx, tenantId, producerId, keepsRecords: false);
 
         var gateway = new FakeGateway();
-        var consumer = new SaleCompletedConsumer(
-            new ProducerReceiptRepository(ctx),
-            new ProducerTaxProfileReader(ctx),
-            gateway,
-            ctx,
-            NullLogger<SaleCompletedConsumer>.Instance);
+        var consumer = NewConsumer(ctx, gateway);
 
         await consumer.Consume(ContextFor(SampleSale(tenantId, Guid.NewGuid(), producerId, saleId)));
 
@@ -120,6 +141,25 @@ public sealed class SaleCompletedConsumerTests
         receipt.ReceiptNumber.Should().NotBeNullOrWhiteSpace();
         receipt.Deductions.Should().HaveCount(2);
         gateway.SendCount.Should().Be(1);
+
+        // BK-4 değişmez: her satış → e-Fatura (HAL/KOMİSYON, alıcıya) + HKS bildirimi.
+        var invoice = await ctx.Invoices.IgnoreQueryFilters().SingleAsync();
+        invoice.SaleTransactionId.Should().Be(saleId);
+        invoice.Scenario.Should().Be(InvoiceScenario.Hal);
+        invoice.Type.Should().Be(InvoiceType.Commission);
+        invoice.CommissionAmount.Should().Be(8.00m);
+        invoice.CommissionVatAmount.Should().Be(1.60m);
+        invoice.TotalAmount.Should().Be(9.60m); // komisyon 8,00 + KDV 1,60
+        invoice.Status.Should().Be(InvoiceStatus.Issued);
+        gateway.InvoiceCount.Should().Be(1);
+
+        var hks = await ctx.HksNotifications.IgnoreQueryFilters().SingleAsync();
+        hks.SaleTransactionId.Should().Be(saleId);
+        hks.GrossAmount.Should().Be(100.00m);
+        hks.CommissionAmount.Should().Be(8.00m);
+        hks.MarketFeeAmount.Should().Be(1.00m); // rüsum AYRI taşınır (docs/02 §7, BK-5)
+        hks.Status.Should().Be(HksNotificationStatus.Notified);
+        gateway.HksCount.Should().Be(1);
     }
 
     [Fact]
@@ -134,14 +174,19 @@ public sealed class SaleCompletedConsumerTests
         SeedProfile(ctx, tenantId, producerId, keepsRecords: true);
 
         var gateway = new FakeGateway();
-        var consumer = new SaleCompletedConsumer(
-            new ProducerReceiptRepository(ctx), new ProducerTaxProfileReader(ctx), gateway, ctx,
-            NullLogger<SaleCompletedConsumer>.Instance);
+        var consumer = NewConsumer(ctx, gateway);
 
         await consumer.Consume(ContextFor(SampleSale(tenantId, Guid.NewGuid(), producerId, Guid.NewGuid())));
 
+        // e-MM üretilmez (kayıt tutan müstahsil)...
         (await ctx.ProducerReceipts.IgnoreQueryFilters().AnyAsync()).Should().BeFalse();
         gateway.SendCount.Should().Be(0);
+
+        // ...ama e-Fatura + HKS HER satış için üretilir (BK-4; KeepsRecords'tan bağımsız).
+        (await ctx.Invoices.IgnoreQueryFilters().CountAsync()).Should().Be(1);
+        (await ctx.HksNotifications.IgnoreQueryFilters().CountAsync()).Should().Be(1);
+        gateway.InvoiceCount.Should().Be(1);
+        gateway.HksCount.Should().Be(1);
     }
 
     [Fact]
@@ -154,15 +199,18 @@ public sealed class SaleCompletedConsumerTests
         await using var ctx = CreateContext(stub, dbName);
         // Profil YOK — bilerek seed edilmedi.
         var gateway = new FakeGateway();
-        var consumer = new SaleCompletedConsumer(
-            new ProducerReceiptRepository(ctx), new ProducerTaxProfileReader(ctx), gateway, ctx,
-            NullLogger<SaleCompletedConsumer>.Instance);
+        var consumer = NewConsumer(ctx, gateway);
 
         var act = () => consumer.Consume(ContextFor(SampleSale(tenantId, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid())));
 
+        // e-MM için profil gerekli → KeepsRecords bilinmiyor → istisna (retry/error queue).
         await act.Should().ThrowAsync<InvalidOperationException>();
         (await ctx.ProducerReceipts.IgnoreQueryFilters().AnyAsync()).Should().BeFalse();
         gateway.SendCount.Should().Be(0);
+
+        // e-Fatura + HKS istisnadan ÖNCE üretilip kalıcılaştı; retry'da idempotent atlanacaklar.
+        (await ctx.Invoices.IgnoreQueryFilters().CountAsync()).Should().Be(1);
+        (await ctx.HksNotifications.IgnoreQueryFilters().CountAsync()).Should().Be(1);
     }
 
     [Fact]
@@ -179,13 +227,16 @@ public sealed class SaleCompletedConsumerTests
 
         var gateway = new FakeGateway();
 
-        var first = new SaleCompletedConsumer(
-            new ProducerReceiptRepository(ctx), new ProducerTaxProfileReader(ctx), gateway, ctx,
-            NullLogger<SaleCompletedConsumer>.Instance);
+        var first = NewConsumer(ctx, gateway);
         await first.Consume(ContextFor(SampleSale(tenantId, Guid.NewGuid(), producerId, saleId)));
         await first.Consume(ContextFor(SampleSale(tenantId, Guid.NewGuid(), producerId, saleId)));
 
+        // Her belge türü satış başına tek kez üretilir (docs/04 §5).
         (await ctx.ProducerReceipts.IgnoreQueryFilters().CountAsync()).Should().Be(1);
+        (await ctx.Invoices.IgnoreQueryFilters().CountAsync()).Should().Be(1);
+        (await ctx.HksNotifications.IgnoreQueryFilters().CountAsync()).Should().Be(1);
         gateway.SendCount.Should().Be(1);
+        gateway.InvoiceCount.Should().Be(1);
+        gateway.HksCount.Should().Be(1);
     }
 }
