@@ -1,0 +1,90 @@
+name: CI
+
+# HalOS Continuous Integration.
+# Docs: docs/04-Sistem-Mimarisi-ve-ADR.md (§9 CI/CD), docs/07-Claude-Code-Gelistirme-Kurallari.md (§7 Test, §9 PR).
+# Runs on every pull request and on pushes to the main integration branches.
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Job 1 — .NET 8 backend: restore, build, test the whole solution.
+  # ADR-001 (C# / .NET 8), 07 §7 (tests must be green before merge).
+  # ---------------------------------------------------------------------------
+  backend:
+    name: .NET Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore HalOS.sln
+
+      - name: Build
+        run: dotnet build HalOS.sln --configuration Release --no-restore
+
+      # --no-build keeps the tested binaries identical to the build step.
+      # No test projects yet returns exit 0; the step stays green until tests land.
+      - name: Test
+        run: dotnet test HalOS.sln --configuration Release --no-build --verbosity normal
+
+  # ---------------------------------------------------------------------------
+  # Job 2 — Web console (Next.js, ADR-003): install, typecheck, lint, build.
+  # Matrix over supported Node LTS lines (20 / 22).
+  # ---------------------------------------------------------------------------
+  web-console:
+    name: Web Console (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/console
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['20', '22']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # Prefer reproducible `npm ci`; fall back to `npm install` until a
+      # package-lock.json is committed (npm ci requires a lockfile).
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
+            npm ci
+          else
+            echo "No lockfile found; using 'npm install' (commit package-lock.json to enable 'npm ci')."
+            npm install
+          fi
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build

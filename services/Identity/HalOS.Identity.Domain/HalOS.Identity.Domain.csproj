@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <!-- Domain YALNIZCA BuildingBlocks.Domain'e bağlı — sıfır dış paket (docs/07 §2). -->
+    <ProjectReference Include="..\..\..\building-blocks\HalOS.BuildingBlocks.Domain\HalOS.BuildingBlocks.Domain.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

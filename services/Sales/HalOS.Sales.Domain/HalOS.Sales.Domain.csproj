@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <!-- Domain YALNIZCA BuildingBlocks.Domain + Contracts'e bağlı — sıfır dış paket (docs/07 §2).
+         Contracts, servisler-arası SaleCompleted sözleşmesini barındırır (IDomainEvent'e dayanır). -->
+    <ProjectReference Include="..\..\..\building-blocks\HalOS.BuildingBlocks.Domain\HalOS.BuildingBlocks.Domain.csproj" />
+    <ProjectReference Include="..\..\..\building-blocks\HalOS.BuildingBlocks.Contracts\HalOS.BuildingBlocks.Contracts.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

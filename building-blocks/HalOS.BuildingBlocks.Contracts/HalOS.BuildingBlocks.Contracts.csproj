@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>HalOS.BuildingBlocks.Contracts</RootNamespace>
+    <AssemblyName>HalOS.BuildingBlocks.Contracts</AssemblyName>
+  </PropertyGroup>
+
+  <!--
+    Servisler-arası (cross-service) event sözleşmelerinin YAŞADIĞI yer. Yalnızca
+    BuildingBlocks.Domain'e bağlıdır (IDomainEvent için) — hiçbir servise ya da dış
+    mesajlaşma paketine bağımlı değildir; böylece her servis bu sözleşmelere güvenle
+    referans verebilir, döngüsel bağımlılık oluşmaz (docs/04 ADR-006, docs/07 §2).
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\HalOS.BuildingBlocks.Domain\HalOS.BuildingBlocks.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

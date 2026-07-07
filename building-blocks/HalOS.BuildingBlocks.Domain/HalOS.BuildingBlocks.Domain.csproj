@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>HalOS.BuildingBlocks.Domain</RootNamespace>
+    <AssemblyName>HalOS.BuildingBlocks.Domain</AssemblyName>
+  </PropertyGroup>
+
+  <!--
+    Domain katmanı hiçbir dış PAKETE bağımlı değildir (docs/07 §2 — bağımlılık yönü kuralı).
+    Bu proje bilinçli olarak PackageReference içermez; kırılırsa katman ihlali demektir.
+  -->
+
+</Project>

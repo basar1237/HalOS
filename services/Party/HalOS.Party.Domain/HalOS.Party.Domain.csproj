@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <!-- Domain, BuildingBlocks.Domain + Contracts'e bağlı — sıfır dış paket (docs/07 §2).
+         Contracts, servisler-arası ProducerWithholdingProfileChanged sözleşmesini barındırır
+         (IDomainEvent'e dayanır); aggregate stopaj profili değişince bu event'i raise eder.
+         Sales.Domain ile birebir aynı desen. -->
+    <ProjectReference Include="..\..\..\building-blocks\HalOS.BuildingBlocks.Domain\HalOS.BuildingBlocks.Domain.csproj" />
+    <ProjectReference Include="..\..\..\building-blocks\HalOS.BuildingBlocks.Contracts\HalOS.BuildingBlocks.Contracts.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

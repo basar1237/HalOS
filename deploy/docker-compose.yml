@@ -1,0 +1,222 @@
+# HalOS — Yerel geliştirme altyapısı (docs/04 §9: docker-compose ile tek komut)
+# Servisler: PostgreSQL, Redis, RabbitMQ, Elasticsearch, MinIO, Seq.
+# ADR-006 (RabbitMQ event bus), ADR-007 (Postgres/Redis/ES/MinIO), 04 §8 (Serilog -> Seq).
+#
+# Kullanım:
+#   cp .env.example .env
+#   docker compose up -d
+# Ayrıntı için: deploy/README.md
+#
+# Not: Tüm imaj sürümleri sabitlenmiştir (tekrarlanabilir dev ortamı).
+
+name: halos-dev
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16 — birincil OLTP (ADR-007)
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: halos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-halos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-halos_dev_pw}
+      POSTGRES_DB: ${POSTGRES_DB:-halos}
+      # UTF-8 + tr_TR uyumlu sıralama için initdb argümanları
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Servis başına ayrı DB (ADR-006): halos_identity/party/sales/finance ilk açılışta oluşturulur.
+      # (FinanceDb bağlantısı halos_finance DB'sine işaret eder — bkz. README.)
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-halos} -d ${POSTGRES_DB:-halos}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - halos
+
+  # ---------------------------------------------------------------------------
+  # Redis 7 — cache / dağıtık kilit / kuyruk yardımı (ADR-007)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: halos-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-halos_dev_pw}"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"${REDIS_PASSWORD:-halos_dev_pw}\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - halos
+
+  # ---------------------------------------------------------------------------
+  # RabbitMQ 3.13 (management) — event bus (ADR-006)
+  # AMQP: 5672, Management UI: 15672
+  # ---------------------------------------------------------------------------
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: halos-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-halos}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-halos_dev_pw}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - halos
+
+  # ---------------------------------------------------------------------------
+  # Elasticsearch 8 (single-node) — arama (ADR-007)
+  # Dev için güvenlik (xpack.security) kapalı; PROD'da açılmalı.
+  # ---------------------------------------------------------------------------
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
+    container_name: halos-elasticsearch
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      # Dev makinesinde bellek baskısını azalt
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+      bootstrap.memory_lock: "true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "${ELASTICSEARCH_PORT:-9200}:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+    networks:
+      - halos
+
+  # ---------------------------------------------------------------------------
+  # MinIO — S3 uyumlu nesne deposu / belge-görsel (ADR-007, 04 §3)
+  # API: 9000, Console: 9001
+  # ---------------------------------------------------------------------------
+  minio:
+    image: minio/minio:RELEASE.2024-07-16T23-46-41Z
+    container_name: halos-minio
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-halos}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-halos_dev_pw}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9000/minio/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - halos
+
+  # ---------------------------------------------------------------------------
+  # Seq — yapısal log toplama (Serilog -> Seq, 04 §8 dev ortamı)
+  # Ingestion + UI: 5341 (HTTP)
+  # ---------------------------------------------------------------------------
+  seq:
+    image: datalust/seq:2024.3
+    container_name: halos-seq
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      # Dev için opsiyonel admin parolası (boşsa ilk açılışta parolasız)
+      SEQ_FIRSTRUN_ADMINPASSWORDHASH: ${SEQ_ADMIN_PASSWORD_HASH:-}
+    ports:
+      - "${SEQ_UI_PORT:-5341}:80"
+      - "${SEQ_INGESTION_PORT:-5342}:5341"
+    volumes:
+      - seq-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - halos
+
+  # ---------------------------------------------------------------------------
+  # Finance (Cari & Finans) servisi — S1.4 / M6 (docs/03)
+  # ---------------------------------------------------------------------------
+  # NOT: Bu compose birincil olarak ALTYAPI içindir (bkz. deploy/README.md); uygulama
+  # servisleri normalde yerelde `dotnet run` ile çalıştırılır. Aşağıdaki Finance servisi,
+  # konteynerleştirilmiş çalıştırma için hazır blok olarak eklenmiştir. Etkinleştirmek için
+  # `HalOS.Finance.Api` altında bir Dockerfile bulunmalı ve profil verilmelidir:
+  #   docker compose --profile apps up -d finance
+  # Finance, SaleCompleted'i RabbitMQ'dan tüketir (ADR-006) ve halos_finance DB'sine yazar.
+  finance:
+    profiles: ["apps"]
+    build:
+      context: ..
+      dockerfile: services/Finance/HalOS.Finance.Api/Dockerfile
+    container_name: halos-finance
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      # FinanceDb: servis kendi DB'sine (halos_finance) bağlanır (ADR-006).
+      ConnectionStrings__FinanceDb: "Host=postgres;Port=5432;Database=halos_finance;Username=${POSTGRES_USER:-halos};Password=${POSTGRES_PASSWORD:-halos_dev_pw}"
+      # Event bus (ADR-006): SaleCompleted tüketimi + PaymentDue/PaymentMade/CollectionReceived yayını.
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: "/"
+      RabbitMq__Username: ${RABBITMQ_USER:-halos}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:-halos_dev_pw}
+      # JWT imza anahtarı üretimde Vault/ortam değişkeninden gelir (docs/04 §7).
+      Jwt__SigningKey: ${FINANCE_JWT_SIGNING_KEY:-dev-only-signing-key-change-me-please-0123456789abcdef}
+    ports:
+      - "${FINANCE_PORT:-5065}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - halos
+
+volumes:
+  postgres-data:
+  redis-data:
+  rabbitmq-data:
+  elasticsearch-data:
+  minio-data:
+  seq-data:
+
+networks:
+  halos:
+    name: halos-dev
+    driver: bridge
