@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    HalOS API Gateway (BFF) — docs/04 §3 mimari şeması (Client → GW → Servisler). Tüm istemciler
+    (Web/Mobil/Tauri) yalnız buraya konuşur; GW istekleri ilgili .NET servisine YÖNLENDİRİR.
+    Teknoloji: YARP ters-vekil (impl. detayı kararı — Claude verdi, kullanıcı vetosuna açık; docs
+    "API Gateway/BFF" der ama kütüphane belirtmez, .NET-8 stack'iyle YARP uyumlu standart seçim).
+    GW kimlik DOĞRULAMAZ (her servis kendi JWT'sini doğrular); yalnız yönlendirir + Authorization
+    başlığını geçirir + tarayıcı için CORS uygular. WebSocket (SignalR /hubs) YARP ile proxy'lenir.
+    DbContext/mesajlaşma YOK.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Yarp.ReverseProxy" Version="2.2.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.Seq" Version="8.0.0" />
+  </ItemGroup>
+
+</Project>

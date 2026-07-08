@@ -372,6 +372,42 @@ services:
     networks:
       - halos
 
+  # ---------------------------------------------------------------------------
+  # API Gateway (BFF) — docs/04 §3: tüm istemciler (Web/Mobil/Tauri) YALNIZ buraya konuşur;
+  # GW istekleri ilgili .NET servisine yönlendirir (YARP ters-vekil). Kimlik DOĞRULAMAZ (her
+  # servis kendi JWT'sini doğrular), yalnız yönlendirir + Authorization geçirir + tarayıcı için
+  # CORS. SignalR /hubs WebSocket proxy'lenir. DbContext/mesajlaşma YOK.
+  #   docker compose --profile apps up -d gateway
+  # ---------------------------------------------------------------------------
+  gateway:
+    profiles: ["apps"]
+    build:
+      context: ..
+      dockerfile: services/Gateway/HalOS.Gateway/Dockerfile
+    container_name: halos-gateway
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      # Tarayıcı konsolun origin'i (CORS). Üretimde gerçek alan adına sıkılaştırılır.
+      Cors__AllowedOrigins__0: ${GATEWAY_CORS_ORIGIN:-http://localhost:3000}
+      # Development appsettings localhost destinasyonları yükler; compose ağında servis adlarına
+      # (http://sales:8080) override edilir — böylece Development imajı da doğru hedefe gider.
+      ReverseProxy__Clusters__identity__Destinations__primary__Address: http://identity:8080/
+      ReverseProxy__Clusters__party__Destinations__primary__Address: http://party:8080/
+      ReverseProxy__Clusters__sales__Destinations__primary__Address: http://sales:8080/
+      ReverseProxy__Clusters__finance__Destinations__primary__Address: http://finance:8080/
+      ReverseProxy__Clusters__integration__Destinations__primary__Address: http://integration:8080/
+      ReverseProxy__Clusters__inventory__Destinations__primary__Address: http://inventory:8080/
+      ReverseProxy__Clusters__search__Destinations__primary__Address: http://search:8080/
+      ReverseProxy__Clusters__notification__Destinations__primary__Address: http://notification:8080/
+      ReverseProxy__Clusters__ai__Destinations__primary__Address: http://ai-gateway:8080/
+    ports:
+      # docs/04 §3 BFF; Next.js konsol NEXT_PUBLIC_API_BASE_URL bunu gösterir.
+      - "${GATEWAY_PORT:-5000}:8080"
+    networks:
+      - halos
+
 volumes:
   postgres-data:
   redis-data:
