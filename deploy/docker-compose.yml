@@ -310,6 +310,38 @@ services:
     networks:
       - halos
 
+  # Notification (Bildirim) — canlı SignalR dashboard, S2.2 (docs/06; docs/02 Bildirim bağlamı).
+  #   docker compose --profile apps up -d notification
+  # Notification, SaleCompleted'i RabbitMQ'dan tüketir (ADR-006) ve patronun canlı dashboard'una
+  # (SignalR hub /hubs/dashboard) YALNIZ ilgili tenant grubuna özet yayınlar (BK-8). SALT
+  # tüketici→broadcast: kaynak servislerin DB'sine dokunmaz, event YAYMAZ. Postgres/DbContext YOK.
+  notification:
+    profiles: ["apps"]
+    build:
+      context: ..
+      dockerfile: services/Notification/HalOS.Notification.Api/Dockerfile
+    container_name: halos-notification
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      # Event bus (ADR-006): SaleCompleted tüketimi (yayın YOK).
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: "/"
+      RabbitMq__Username: ${RABBITMQ_USER:-halos}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:-halos_dev_pw}
+      # JWT imza anahtarı üretimde Vault/ortam değişkeninden gelir (docs/04 §7). SignalR hub JWT'yi
+      # (query string access_token veya Authorization) bu anahtarla doğrular.
+      Jwt__SigningKey: ${NOTIFICATION_JWT_SIGNING_KEY:-dev-only-signing-key-change-me-please-0123456789abcdef}
+    ports:
+      # Search de yerel 5095'i kullandığından çakışmayı önlemek için Notification host portu 5096.
+      - "${NOTIFICATION_PORT:-5096}:8080"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - halos
+
   # ---------------------------------------------------------------------------
   # AI Gateway (Python/FastAPI) — ERP <-> AI güvenli sınırı (docs/04 ADR-002, S2.4).
   #   docker compose --profile apps up -d ai-gateway

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Notification.Domain — canlı dashboard bildirim modeli (docs/06 S2.2 canlı SignalR dashboard;
+    docs/02 Bildirim bağlamı). Postgres/DbContext YOK (ADR-006/ADR-007: Notification salt
+    tüketici→broadcast servisidir, kalıcı depo tutmaz). Sıfır dış paket; yalnız POCO model
+    (docs/07 §2). Kaynak servislerin DB'sine dokunmaz — event'lerden beslenip canlı yayınlar.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

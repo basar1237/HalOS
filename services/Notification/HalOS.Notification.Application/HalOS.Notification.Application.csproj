@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Notification.Application — canlı yayın soyutlaması (IDashboardBroadcaster) ve consumer'lar
+    (SaleCompleted -> DashboardNotification -> broadcast). Contracts'a bağlıdır (tüketilen
+    servisler-arası event'ler + ITenantScopedEvent). MassTransit.Abstractions consumer arayüzü
+    (IConsumer) için — taşıma (RabbitMQ) Api'de kurulur. Postgres/DbContext YOK (docs/06 S2.2).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HalOS.Notification.Domain\HalOS.Notification.Domain.csproj" />
+    <ProjectReference Include="..\..\..\building-blocks\HalOS.BuildingBlocks.Contracts\HalOS.BuildingBlocks.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MassTransit.Abstractions" Version="8.5.10" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
+  </ItemGroup>
+
+</Project>
