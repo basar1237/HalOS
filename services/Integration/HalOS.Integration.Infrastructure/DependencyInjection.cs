@@ -36,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<IProducerReceiptRepository, ProducerReceiptRepository>();
         services.AddScoped<IInvoiceRepository, InvoiceRepository>();
         services.AddScoped<IHksNotificationRepository, HksNotificationRepository>();
+        services.AddScoped<IProductPassportRepository, ProductPassportRepository>();
         services.AddScoped<IProducerTaxProfileReader, ProducerTaxProfileReader>();
         services.AddScoped<IProducerTaxProfileWriter, ProducerTaxProfileWriter>();
 

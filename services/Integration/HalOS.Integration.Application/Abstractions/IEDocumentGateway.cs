@@ -38,4 +38,12 @@ public interface IEDocumentGateway
     /// yutmadan istisnaya çevirir (retry/error queue, docs/04 §10). e-MM deseniyle birebir.
     /// </summary>
     Task<Result<string>> SendHksNotificationAsync(HksNotification notification, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Verilen künye (<see cref="ProductPassport"/>) için HKS'ten 19-haneli künye kodu üretir/tescil eder.
+    /// Başarılıysa atanan 19-haneli kodu taşıyan <see cref="Result{T}"/> döner; başarısızsa anlamlı bir
+    /// <see cref="Error"/> — consumer bunu yutmadan istisnaya çevirir (retry/error queue, docs/04 §10).
+    /// e-MM/e-Fatura/HKS deseniyle birebir. Bu slice'ta STUB.
+    /// </summary>
+    Task<Result<string>> GenerateProductPassportAsync(ProductPassport passport, CancellationToken cancellationToken = default);
 }

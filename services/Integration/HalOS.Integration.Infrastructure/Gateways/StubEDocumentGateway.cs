@@ -67,4 +67,21 @@ internal sealed class StubEDocumentGateway : IEDocumentGateway
 
         return Task.FromResult<Result<string>>(referenceNumber);
     }
+
+    public Task<Result<string>> GenerateProductPassportAsync(ProductPassport passport, CancellationToken cancellationToken = default)
+    {
+        // Sahte HKS 19-HANELİ künye kodu (sayısal): yyyyMMdd (8) + Guid'den türetilen 11 hane = 19.
+        // Gerçek entegrasyonda HKS 19-haneli tescil kodunu döner (üretim yeri/tür/miktar/üretici/sertifika).
+        var digits = string.Concat(Guid.NewGuid().ToByteArray().Select(b => (b % 10).ToString()));
+        var code = $"{passport.ReceivedAt:yyyyMMdd}{digits}"[..19];
+
+        _logger.LogInformation(
+            "STUB künye üretimi: Tenant={TenantId} Consignment={ConsignmentId} Item={ConsignmentItemId} KünyeKodu={PassportCode} (gerçek HKS entegrasyonu sonraki slice).",
+            passport.TenantId,
+            passport.ConsignmentId,
+            passport.ConsignmentItemId,
+            code);
+
+        return Task.FromResult<Result<string>>(code);
+    }
 }

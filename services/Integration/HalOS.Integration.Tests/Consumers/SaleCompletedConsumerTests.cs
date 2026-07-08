@@ -60,6 +60,9 @@ public sealed class SaleCompletedConsumerTests
             HksCount++;
             return Task.FromResult<Result<string>>($"HKS-TEST-{HksCount:D4}");
         }
+
+        public Task<Result<string>> GenerateProductPassportAsync(ProductPassport passport, CancellationToken cancellationToken = default)
+            => Task.FromResult<Result<string>>("1234567890123456789");
     }
 
     private static SaleCompletedConsumer NewConsumer(IntegrationDbContext ctx, FakeGateway gateway) =>

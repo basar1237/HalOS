@@ -29,6 +29,8 @@ public sealed class IntegrationDbContext : TenantDbContextBase, IUnitOfWork
 
     public DbSet<HksNotification> HksNotifications => Set<HksNotification>();
 
+    public DbSet<ProductPassport> ProductPassports => Set<ProductPassport>();
+
     public DbSet<ProducerTaxProfile> ProducerTaxProfiles => Set<ProducerTaxProfile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

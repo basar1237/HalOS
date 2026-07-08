@@ -49,6 +49,7 @@ builder.Services.AddHalOSMessaging<IntegrationDbContext>(
     {
         x.AddConsumer<SaleCompletedConsumer>();
         x.AddConsumer<ProducerWithholdingProfileChangedConsumer>();
+        x.AddConsumer<ConsignmentReceivedConsumer>();
     });
 
 // --- Kimlik doğrulama: JWT Bearer (docs/04 ADR-009); token'ları Identity servisi üretir ---

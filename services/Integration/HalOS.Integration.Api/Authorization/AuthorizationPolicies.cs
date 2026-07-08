@@ -16,11 +16,13 @@ public static class AuthorizationPolicies
     public const string InvoiceReissue = "InvoiceReissue";
     public const string HksNotificationRead = "HksNotificationRead";
     public const string HksNotificationReissue = "HksNotificationReissue";
+    public const string ProductPassportRead = "ProductPassportRead";
 
     // Identity.SystemRole kod adlarıyla birebir (servisler arası ortak sözleşme).
     private const string Owner = "Owner";
     private const string Manager = "Manager";
     private const string Accountant = "Accountant";
+    private const string Warehouse = "Warehouse";
 
     public static void AddIntegrationPolicies(this AuthorizationOptions options)
     {
@@ -37,5 +39,8 @@ public static class AuthorizationPolicies
         // HKS bildirimi görüntüle/liste + yeniden gönder: Patron/Yönetici/Muhasebe (docs/03 §3/§5, BK-4).
         options.AddPolicy(HksNotificationRead, p => p.RequireRole(Owner, Manager, Accountant));
         options.AddPolicy(HksNotificationReissue, p => p.RequireRole(Owner, Manager, Accountant));
+
+        // Künye görüntüle/liste: Patron/Yönetici/Muhasebe + Depo (docs/03 §5 "Mal Geliş | Depo | Künye").
+        options.AddPolicy(ProductPassportRead, p => p.RequireRole(Owner, Manager, Accountant, Warehouse));
     }
 }

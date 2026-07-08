@@ -1,7 +1,7 @@
 using FluentAssertions;
+using HalOS.BuildingBlocks.Contracts;
 using HalOS.Sales.Domain.Aggregates;
 using HalOS.Sales.Domain.Enums;
-using HalOS.Sales.Domain.Events;
 using Xunit;
 
 namespace HalOS.Sales.Tests.Domain;
@@ -27,6 +27,28 @@ public sealed class ConsignmentTests
         result.Value.Status.Should().Be(ConsignmentStatus.Received);
         result.Value.Items.Should().ContainSingle();
         result.Value.DomainEvents.OfType<ConsignmentReceived>().Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Receive_ValidItems_CarriesItemsInEvent()
+    {
+        var items = new[] { new Consignment.ItemInput(_productId, 50m, UnitOfMeasure.Crate) };
+
+        var result = Consignment.Receive(_tenantId, _producerId, ReceivedAt, "IRS-123", _userId, items);
+
+        var evt = result.Value.DomainEvents.OfType<ConsignmentReceived>().Single();
+        var expectedItem = result.Value.Items.Single();
+
+        evt.TenantId.Should().Be(_tenantId);
+        evt.ConsignmentId.Should().Be(result.Value.Id);
+        evt.ProducerPartyId.Should().Be(_producerId);
+        evt.Items.Should().ContainSingle();
+
+        var eventItem = evt.Items.Single();
+        eventItem.ConsignmentItemId.Should().Be(expectedItem.Id);
+        eventItem.ProductId.Should().Be(_productId);
+        eventItem.Quantity.Should().Be(50m);
+        eventItem.UnitCode.Should().Be(UnitOfMeasure.Crate.ToString());
     }
 
     [Fact]

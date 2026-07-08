@@ -1,6 +1,6 @@
+using HalOS.BuildingBlocks.Contracts;
 using HalOS.BuildingBlocks.Domain;
 using HalOS.Sales.Domain.Enums;
-using HalOS.Sales.Domain.Events;
 
 namespace HalOS.Sales.Domain.Aggregates;
 
@@ -111,9 +111,13 @@ public sealed class Consignment : AggregateRoot<Guid>, ITenantOwned
                 ConsignmentItem.Create(consignment.Id, tenantId, item.ProductId, item.Quantity, item.Unit));
         }
 
+        var eventItems = consignment._items
+            .Select(i => new ConsignmentReceivedItem(i.Id, i.ProductId, i.Quantity, i.Unit.ToString()))
+            .ToList();
+
         consignment.RaiseDomainEvent(
             new ConsignmentReceived(
-                consignment.Id, tenantId, producerPartyId, receivedAt, consignment.CreatedOnUtc));
+                consignment.Id, tenantId, producerPartyId, receivedAt, eventItems, consignment.CreatedOnUtc));
 
         return consignment;
     }
