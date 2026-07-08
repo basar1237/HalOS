@@ -39,6 +39,15 @@ public sealed class SaleCompletedConsumerTests
         return new InventoryDbContext(options, tenantContext);
     }
 
+    private static SaleCompletedConsumer NewConsumer(InventoryDbContext ctx)
+    {
+        var stockItems = new StockItemRepository(ctx);
+        var warehouses = new WarehouseRepository(ctx);
+        var provider = new WarehouseProvider(warehouses);
+        return new SaleCompletedConsumer(
+            stockItems, provider, ctx, NullLogger<SaleCompletedConsumer>.Instance);
+    }
+
     private static ConsumeContext<SaleCompleted> ContextFor(SaleCompleted message)
     {
         var mock = new Mock<ConsumeContext<SaleCompleted>>();
@@ -71,10 +80,16 @@ public sealed class SaleCompletedConsumerTests
             OccurredOnUtc: DateTime.UtcNow);
     }
 
-    /// <summary>Belirli bir ürün için önceden stok girişi olan bir kalem seed'ler.</summary>
+    /// <summary>
+    /// Varsayılan depo (MERKEZ) + belirli bir ürün için önceden stok girişi olan bir kalem seed'ler.
+    /// Consumer varsayılan depoya çıkış yazacağından kalem de o depoya açılır (docs/06 S2.1).
+    /// </summary>
     private static async Task SeedStockAsync(InventoryDbContext ctx, Guid tenantId, Guid productId, decimal quantity)
     {
-        var item = StockItem.Open(tenantId, productId).Value;
+        var warehouse = Warehouse.Create(tenantId, "Merkez Depo", "MERKEZ", isDefault: true).Value;
+        ctx.Warehouses.Add(warehouse);
+
+        var item = StockItem.Open(tenantId, warehouse.Id, productId).Value;
         item.RecordIntake(Guid.NewGuid(), quantity, new DateTime(2026, 7, 5, 8, 0, 0, DateTimeKind.Utc));
         ctx.StockItems.Add(item);
         await ctx.SaveChangesAsync();
@@ -95,8 +110,7 @@ public sealed class SaleCompletedConsumerTests
 
         await using (var ctx = CreateContext(stub, dbName))
         {
-            var consumer = new SaleCompletedConsumer(
-                new StockItemRepository(ctx), ctx, NullLogger<SaleCompletedConsumer>.Instance);
+            var consumer = NewConsumer(ctx);
             await consumer.Consume(ContextFor(SampleSale(tenantId, Guid.NewGuid(), (Guid.NewGuid(), productId, 30.000m))));
         }
 
@@ -125,8 +139,7 @@ public sealed class SaleCompletedConsumerTests
 
         await using (var ctx = CreateContext(stub, dbName))
         {
-            var consumer = new SaleCompletedConsumer(
-                new StockItemRepository(ctx), ctx, NullLogger<SaleCompletedConsumer>.Instance);
+            var consumer = NewConsumer(ctx);
 
             var act = () => consumer.Consume(ContextFor(SampleSale(tenantId, Guid.NewGuid(), (Guid.NewGuid(), productId, 11.000m))));
             await act.Should().ThrowAsync<InvalidOperationException>();
@@ -158,15 +171,13 @@ public sealed class SaleCompletedConsumerTests
 
         await using (var ctx = CreateContext(stub, dbName))
         {
-            var consumer = new SaleCompletedConsumer(
-                new StockItemRepository(ctx), ctx, NullLogger<SaleCompletedConsumer>.Instance);
+            var consumer = NewConsumer(ctx);
             await consumer.Consume(ContextFor(message));
         }
 
         await using (var ctx = CreateContext(stub, dbName))
         {
-            var consumer = new SaleCompletedConsumer(
-                new StockItemRepository(ctx), ctx, NullLogger<SaleCompletedConsumer>.Instance);
+            var consumer = NewConsumer(ctx);
             await consumer.Consume(ContextFor(message)); // broker retry
         }
 

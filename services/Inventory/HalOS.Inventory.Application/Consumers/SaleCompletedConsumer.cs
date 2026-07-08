@@ -20,22 +20,30 @@ namespace HalOS.Inventory.Application.Consumers;
 /// döndürür → bu consumer istisna fırlatır (yutulan Result yok) ve HİÇBİR satır kalıcılaşmaz →
 /// MassTransit retry/error queue (docs/04 §10).
 ///
+/// <b>Depo</b> (docs/06 S2.1): olay warehouse taşımadığından çıkış tenant'ın VARSAYILAN deposundan
+/// düşülür; varsayılan depo yoksa <see cref="IWarehouseProvider"/> ile "Merkez Depo" lazım olunca
+/// oluşturulur. Çıkış varsayılan depoda hiç stok yoksa BK-7 gereği reddedilir (kalan negatif olamaz).
+///
 /// <b>Tenant</b>: event'in kendisiyle (<see cref="ITenantScopedEvent"/>) taşınır ve
 /// <c>TenantConsumeFilter</c> ile ambient tenant'a set edilir (docs/07 §6 / BK-8). El-yapımı outbox
-/// korunur. Consumer içinde HTTP/dış sorgu yok (docs/07 §5).
+/// korunur (çıkış eşiği geçerse <see cref="Domain.Events.LowStockAlerted"/> outbox'a). Consumer içinde
+/// HTTP/dış sorgu yok (docs/07 §5).
 /// </summary>
 public sealed class SaleCompletedConsumer : IConsumer<SaleCompleted>
 {
     private readonly IStockItemRepository _stockItems;
+    private readonly IWarehouseProvider _warehouses;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<SaleCompletedConsumer> _logger;
 
     public SaleCompletedConsumer(
         IStockItemRepository stockItems,
+        IWarehouseProvider warehouses,
         IUnitOfWork unitOfWork,
         ILogger<SaleCompletedConsumer> logger)
     {
         _stockItems = stockItems;
+        _warehouses = warehouses;
         _unitOfWork = unitOfWork;
         _logger = logger;
     }
@@ -45,14 +53,17 @@ public sealed class SaleCompletedConsumer : IConsumer<SaleCompleted>
         var message = context.Message;
         var ct = context.CancellationToken;
 
+        // Olay depo taşımaz → tenant'ın varsayılan deposundan düşülür (yoksa "Merkez Depo" oluşturulur).
+        var warehouse = await _warehouses.GetOrCreateDefaultAsync(message.TenantId, ct);
+
         // Aynı ürün birden çok satırda geçerse tek stok kalemi kullanılır (UNIQUE(tenant_id,
-        // product_id) ihlalini önler); ayrıca aynı kalemde biriken çıkışlar BK-7 kontrolünü
-        // (kalan negatif olamaz) doğru şekilde kümülatif değerlendirir.
+        // warehouse_id, product_id) ihlalini önler); ayrıca aynı kalemde biriken çıkışlar BK-7
+        // kontrolünü (kalan negatif olamaz) doğru şekilde kümülatif değerlendirir.
         var openedItems = new Dictionary<Guid, StockItem>();
 
         foreach (var line in message.Lines)
         {
-            var stockItem = await GetOrOpenAsync(openedItems, message.TenantId, line.ProductId, ct);
+            var stockItem = await GetOrOpenAsync(openedItems, message.TenantId, warehouse.Id, line.ProductId, ct);
 
             var result = stockItem.RecordSaleOut(line.SaleLineId, line.Quantity, message.SoldAt);
             if (result.IsFailure)
@@ -82,13 +93,14 @@ public sealed class SaleCompletedConsumer : IConsumer<SaleCompleted>
     }
 
     /// <summary>
-    /// Ürünün stok kalemini getirir; yoksa açar ve repository'ye ekler (upsert). Aynı Consume
-    /// çağrısında zaten açılmış/getirilmiş bir kalem varsa onu yeniden kullanır — yeni satır açıp
-    /// UNIQUE(tenant_id, product_id) ihlaline yol açmaz.
+    /// Varsayılan depodaki ürünün stok kalemini getirir; yoksa açar ve repository'ye ekler (upsert).
+    /// Aynı Consume çağrısında zaten açılmış/getirilmiş bir kalem varsa onu yeniden kullanır — yeni
+    /// satır açıp UNIQUE(tenant_id, warehouse_id, product_id) ihlaline yol açmaz.
     /// </summary>
     private async Task<StockItem> GetOrOpenAsync(
         Dictionary<Guid, StockItem> openedItems,
         Guid tenantId,
+        Guid warehouseId,
         Guid productId,
         CancellationToken ct)
     {
@@ -97,10 +109,10 @@ public sealed class SaleCompletedConsumer : IConsumer<SaleCompleted>
             return tracked;
         }
 
-        var stockItem = await _stockItems.GetByProductIdAsync(productId, ct);
+        var stockItem = await _stockItems.GetByWarehouseAndProductAsync(warehouseId, productId, ct);
         if (stockItem is null)
         {
-            stockItem = StockItem.Open(tenantId, productId).Value;
+            stockItem = StockItem.Open(tenantId, warehouseId, productId).Value;
             _stockItems.Add(stockItem);
         }
 

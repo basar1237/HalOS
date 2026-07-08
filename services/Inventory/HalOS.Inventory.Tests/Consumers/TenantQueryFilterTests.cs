@@ -30,7 +30,7 @@ public sealed class TenantQueryFilterTests
 
     private static StockItem ItemWithIntake(Guid tenantId)
     {
-        var item = StockItem.Open(tenantId, Guid.NewGuid()).Value;
+        var item = StockItem.Open(tenantId, Guid.NewGuid(), Guid.NewGuid()).Value;
         item.RecordIntake(Guid.NewGuid(), 100.000m, new DateTime(2026, 7, 6, 10, 0, 0, DateTimeKind.Utc));
         return item;
     }

@@ -3,26 +3,21 @@ using HalOS.BuildingBlocks.Domain;
 using HalOS.Inventory.Application.Abstractions;
 using HalOS.Inventory.Domain.Aggregates;
 
-namespace HalOS.Inventory.Application.Features.RecordSpoilage;
+namespace HalOS.Inventory.Application.Features.SetReorderThreshold;
 
 /// <summary>
-/// Fire (zayiat) kaydeden handler (docs/03 M9 / BK-7). Ürünün VARSAYILAN depodaki stok kalemini bulur
-/// (docs/06 S2.1 depo lokasyonu), domain <c>RecordSpoilage</c> ile fire çıkış hareketi işler (BK-7
-/// mevcut stoğu aşma kontrolü domain'de), SaveChanges ile SpoilageRecorded event'i outbox'a atomik
-/// yazılır (docs/02 §237; docs/04 §10). Fire, kalanı eşiğe/altına indirirse LowStockAlerted da outbox'a
-/// yazılır. Handler doğrudan yayın yapmaz (docs/07 §5). Yutulan Result yok. Finance.RecordCollectionHandler
-/// deseniyle birebir.
-///
-/// Not: Fire için stok kalemi ZORUNLU var olmalıdır — hiç girişi olmayan ürüne fire kaydedilemez
-/// (kalan 0 → BK-7 gereği zaten reddedilir). Bu yüzden yoksa hata döner (açılmaz).
+/// Yeniden-sipariş eşiğini ayarlayan handler (docs/06 S2.1 stok uyarıları). Ürünün VARSAYILAN
+/// depodaki stok kalemini bulur, domain <c>SetReorderThreshold</c> ile eşiği ayarlar (negatif kontrol
+/// domain'de) ve SaveChanges ile atomik kaydeder. Bu işlem hareket üretmez; uyarı, eşiği aşan bir
+/// çıkış hareketiyle (satış/fire) yayınlanır. Finance.RecordCollectionHandler deseniyle birebir.
 /// </summary>
-internal sealed class RecordSpoilageHandler : ICommandHandler<RecordSpoilageCommand, Guid>
+internal sealed class SetReorderThresholdHandler : ICommandHandler<SetReorderThresholdCommand, Guid>
 {
     private readonly IStockItemRepository _stockItems;
     private readonly IWarehouseRepository _warehouses;
     private readonly IUnitOfWork _unitOfWork;
 
-    public RecordSpoilageHandler(
+    public SetReorderThresholdHandler(
         IStockItemRepository stockItems,
         IWarehouseRepository warehouses,
         IUnitOfWork unitOfWork)
@@ -32,7 +27,7 @@ internal sealed class RecordSpoilageHandler : ICommandHandler<RecordSpoilageComm
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<Result<Guid>> Handle(RecordSpoilageCommand request, CancellationToken cancellationToken)
+    public async Task<Result<Guid>> Handle(SetReorderThresholdCommand request, CancellationToken cancellationToken)
     {
         var warehouse = await _warehouses.GetDefaultAsync(cancellationToken);
         if (warehouse is null)
@@ -47,7 +42,7 @@ internal sealed class RecordSpoilageHandler : ICommandHandler<RecordSpoilageComm
             return Result.Failure<Guid>(StockItemErrors.NotFound);
         }
 
-        var result = stockItem.RecordSpoilage(request.Quantity, request.Reason, request.OccurredAt);
+        var result = stockItem.SetReorderThreshold(request.ReorderThreshold);
         if (result.IsFailure)
         {
             return Result.Failure<Guid>(result.Error);

@@ -36,6 +36,11 @@ public static class DependencyInjection
 
         services.AddScoped<IStockItemRepository, StockItemRepository>();
 
+        // Depo lokasyonu (docs/06 S2.1): warehouse repo + varsayılan depo sağlayıcısı. Provider,
+        // olay-güdümlü giriş/çıkışta varsayılan depoyu getirir/oluşturur (Consumer içinde HTTP yok).
+        services.AddScoped<IWarehouseRepository, WarehouseRepository>();
+        services.AddScoped<IWarehouseProvider, WarehouseProvider>();
+
         return services;
     }
 }

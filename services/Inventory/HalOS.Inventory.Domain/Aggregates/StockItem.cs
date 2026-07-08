@@ -6,11 +6,12 @@ namespace HalOS.Inventory.Domain.Aggregates;
 
 /// <summary>
 /// Stok Kalemi (StockItem) — Stok &amp; Depo bağlamının kök aggregate'i (docs/02 §115). Bir ürünün
-/// (<see cref="ProductId"/>) o tenant'taki eldeki miktarını, APPEND-ONLY hareket defterinden
-/// (<see cref="StockMovement"/>) türeterek tutar. Cari &amp; Finans <c>CurrentAccount</c>/
-/// <c>AccountEntry</c> deseniyle birebir (bakiye/kalan = Σ hareket). Tenant'a bağlıdır
-/// (ITenantOwned → global query filter, BK-8). Ürün referansı ID ile (servisler arası FK yok —
-/// docs/05 §5); tenant + ürün başına tek stok kalemi (UNIQUE(tenant_id, product_id)).
+/// (<see cref="ProductId"/>) belirli bir DEPODA (<see cref="WarehouseId"/>) o tenant'taki eldeki
+/// miktarını, APPEND-ONLY hareket defterinden (<see cref="StockMovement"/>) türeterek tutar. Cari
+/// &amp; Finans <c>CurrentAccount</c>/<c>AccountEntry</c> deseniyle birebir (bakiye/kalan = Σ
+/// hareket). Tenant'a bağlıdır (ITenantOwned → global query filter, BK-8). Ürün referansı ID ile
+/// (servisler arası FK yok — docs/05 §5); (tenant, depo, ürün) başına tek stok kalemi
+/// (UNIQUE(tenant_id, warehouse_id, product_id) — docs/06 S2.1 depo lokasyonu).
 ///
 /// Değişmezler (docs/02 §115; docs/03 BK-7):
 /// - <c>QuantityOnHand = Σ StockMovement.SignedQuantity</c> (giriş +, çıkış −). Hareketler
@@ -19,6 +20,11 @@ namespace HalOS.Inventory.Domain.Aggregates;
 ///   <see cref="Result.Failure"/> döner ve hareket eklenmez.
 /// - Her hareket miktarı pozitif olmalıdır (miktar &gt; 0).
 ///
+/// Stok uyarıları (docs/06 S2.1): opsiyonel yeniden-sipariş eşiği (<see cref="ReorderThreshold"/>)
+/// tanımlıysa, bir çıkış hareketi (satış/fire) kalanı eşiğe VEYA altına indirdiğinde
+/// <see cref="LowStockAlerted"/> domain event'i yayınlanır (eşik geçişi anında; kalan zaten eşiğin
+/// altındayken tekrar çıkış olursa yeniden yayınlanmaz). Eşik null ise uyarı üretilmez.
+///
 /// Idempotency: aynı kaynak (<see cref="StockMovement.Kind"/>, <see cref="StockMovement.RefId"/>)
 /// stok kalemi içinde bir kez işlenir; consumer tekrar tetiklenirse çift hareket oluşmaz (docs/04 §5).
 /// </summary>
@@ -26,10 +32,11 @@ public sealed class StockItem : AggregateRoot<Guid>, ITenantOwned
 {
     private readonly List<StockMovement> _movements = new();
 
-    private StockItem(Guid id, Guid tenantId, Guid productId)
+    private StockItem(Guid id, Guid tenantId, Guid warehouseId, Guid productId)
         : base(id)
     {
         TenantId = tenantId;
+        WarehouseId = warehouseId;
         ProductId = productId;
     }
 
@@ -40,8 +47,20 @@ public sealed class StockItem : AggregateRoot<Guid>, ITenantOwned
 
     public Guid TenantId { get; private set; }
 
-    /// <summary>Stoğu tutulan ürün (Product ID — FK değil, docs/05 §5). Tenant içinde tekil.</summary>
+    /// <summary>
+    /// Stok kaleminin bulunduğu depo (Warehouse ID — docs/06 S2.1 depo lokasyonu). (tenant, depo,
+    /// ürün) başına tek kalem. Olay-güdümlü giriş/çıkış varsayılan depoya yazılır (docs/06 S2.1 notu).
+    /// </summary>
+    public Guid WarehouseId { get; private set; }
+
+    /// <summary>Stoğu tutulan ürün (Product ID — FK değil, docs/05 §5). Depo içinde tekil.</summary>
     public Guid ProductId { get; private set; }
+
+    /// <summary>
+    /// Yeniden-sipariş eşiği (docs/06 S2.1 stok uyarıları); NUMERIC(18,3) nullable (decimal — BK-2).
+    /// Kalan bu eşiğe veya altına indiğinde <see cref="LowStockAlerted"/> yayınlanır. Null ise uyarı yok.
+    /// </summary>
+    public decimal? ReorderThreshold { get; private set; }
 
     public IReadOnlyCollection<StockMovement> Movements => _movements.AsReadOnly();
 
@@ -51,15 +70,35 @@ public sealed class StockItem : AggregateRoot<Guid>, ITenantOwned
     /// </summary>
     public decimal QuantityOnHand => Math.Round(_movements.Sum(m => m.SignedQuantity), 3, MidpointRounding.AwayFromZero);
 
-    /// <summary>Yeni (boş) bir stok kalemi açar. Ürün referansı zorunlu.</summary>
-    public static Result<StockItem> Open(Guid tenantId, Guid productId)
+    /// <summary>Yeni (boş) bir stok kalemi açar. Depo ve ürün referansı zorunlu.</summary>
+    public static Result<StockItem> Open(Guid tenantId, Guid warehouseId, Guid productId)
     {
+        if (warehouseId == Guid.Empty)
+        {
+            return Result.Failure<StockItem>(StockItemErrors.WarehouseRequired);
+        }
+
         if (productId == Guid.Empty)
         {
             return Result.Failure<StockItem>(StockItemErrors.ProductRequired);
         }
 
-        return new StockItem(Guid.NewGuid(), tenantId, productId);
+        return new StockItem(Guid.NewGuid(), tenantId, warehouseId, productId);
+    }
+
+    /// <summary>
+    /// Yeniden-sipariş eşiğini ayarlar veya kaldırır (docs/06 S2.1 stok uyarıları). Negatif eşik
+    /// kabul edilmez; null verilirse uyarı devre dışı kalır. Bu işlem hareket üretmez.
+    /// </summary>
+    public Result SetReorderThreshold(decimal? threshold)
+    {
+        if (threshold is < 0m)
+        {
+            return Result.Failure(StockItemErrors.NegativeReorderThreshold);
+        }
+
+        ReorderThreshold = threshold;
+        return Result.Success();
     }
 
     /// <summary>
@@ -103,13 +142,17 @@ public sealed class StockItem : AggregateRoot<Guid>, ITenantOwned
         }
 
         var rounded = Round(quantity);
-        if (rounded > QuantityOnHand)
+        var quantityBefore = QuantityOnHand;
+        if (rounded > quantityBefore)
         {
             // BK-7: stok çıkışı mevcut stoğu aşamaz (kalan negatif olamaz).
             return Result.Failure(StockItemErrors.InsufficientStock);
         }
 
         Append(StockMovementKind.SaleOut, -rounded, saleLineId, reason: null, occurredAt);
+
+        RaiseLowStockAlertIfCrossed(quantityBefore, occurredAt);
+
         return Result.Success();
     }
 
@@ -131,7 +174,8 @@ public sealed class StockItem : AggregateRoot<Guid>, ITenantOwned
         }
 
         var rounded = Round(quantity);
-        if (rounded > QuantityOnHand)
+        var quantityBefore = QuantityOnHand;
+        if (rounded > quantityBefore)
         {
             // BK-7: fire mevcut stoğu aşamaz (kalan negatif olamaz).
             return Result.Failure(StockItemErrors.InsufficientStock);
@@ -141,12 +185,38 @@ public sealed class StockItem : AggregateRoot<Guid>, ITenantOwned
 
         RaiseDomainEvent(new SpoilageRecorded(Id, TenantId, ProductId, rounded, reason, DateTime.UtcNow));
 
+        RaiseLowStockAlertIfCrossed(quantityBefore, occurredAt);
+
         return Result.Success();
     }
 
     /// <summary>Bu tür + kaynak referansı zaten işlenmiş mi (idempotency — docs/04 §5).</summary>
     public bool IsAlreadyRecorded(StockMovementKind kind, Guid refId) =>
         _movements.Any(m => m.Kind == kind && m.RefId == refId);
+
+    /// <summary>
+    /// Bir çıkış hareketi (satış/fire) sonrası kalan yeniden-sipariş eşiğine VEYA altına indiyse
+    /// <see cref="LowStockAlerted"/> yayınlar (docs/06 S2.1). Yalnızca EŞİK GEÇİŞİNDE yayınlanır:
+    /// hareketten önce kalan eşiğin ÜSTÜNDEYKEN, hareketten sonra eşiğe/altına inmişse. Kalan zaten
+    /// eşiğin altındayken (önceki hareketle uyarı verilmişken) yeniden yayınlanmaz — gürültü önlenir.
+    /// Eşik null ise hiçbir uyarı üretilmez.
+    /// </summary>
+    private void RaiseLowStockAlertIfCrossed(decimal quantityBefore, DateTime occurredAt)
+    {
+        if (ReorderThreshold is not { } threshold)
+        {
+            return;
+        }
+
+        var quantityAfter = QuantityOnHand;
+
+        // Eşik geçişi: önce eşiğin üstündeydi, şimdi eşikte veya altında.
+        if (quantityBefore > threshold && quantityAfter <= threshold)
+        {
+            RaiseDomainEvent(new LowStockAlerted(
+                Id, TenantId, WarehouseId, ProductId, quantityAfter, threshold, occurredAt));
+        }
+    }
 
     /// <summary>Aggregate içi ortak hareket ekleme yardımcısı (kapsülleme _movements ile korunur).</summary>
     private void Append(StockMovementKind kind, decimal signedQuantity, Guid? refId, string? reason, DateTime occurredAt)
@@ -163,6 +233,12 @@ public static class StockItemErrors
 {
     public static readonly Error ProductRequired =
         new("StockItem.ProductRequired", "Stok kalemi için ürün referansı zorunludur.");
+
+    public static readonly Error WarehouseRequired =
+        new("StockItem.WarehouseRequired", "Stok kalemi için depo referansı zorunludur.");
+
+    public static readonly Error NegativeReorderThreshold =
+        new("StockItem.NegativeReorderThreshold", "Yeniden-sipariş eşiği negatif olamaz.");
 
     public static readonly Error NonPositiveQuantity =
         new("StockItem.NonPositiveQuantity", "Hareket miktarı sıfırdan büyük olmalıdır.");

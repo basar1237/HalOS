@@ -9,3 +9,18 @@ public sealed record RecordSpoilageRequest(
     decimal Quantity,
     string Reason,
     DateTime OccurredAt);
+
+/// <summary>
+/// Depo oluşturma isteği (docs/06 S2.1 depo lokasyonu). Ad + tenant içinde tekil kod + varsayılan mı.
+/// </summary>
+public sealed record CreateWarehouseRequest(
+    string Name,
+    string Code,
+    bool IsDefault);
+
+/// <summary>
+/// Yeniden-sipariş eşiği ayarlama isteği (docs/06 S2.1 stok uyarıları). Ürün + eşik (null: kaldır).
+/// </summary>
+public sealed record SetReorderThresholdRequest(
+    Guid ProductId,
+    decimal? ReorderThreshold);

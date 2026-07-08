@@ -33,11 +33,17 @@ public sealed class RecordSpoilageHandlerTests
 
     private static async Task SeedStockAsync(InventoryDbContext ctx, Guid tenantId, Guid productId, decimal quantity)
     {
-        var item = StockItem.Open(tenantId, productId).Value;
+        var warehouse = Warehouse.Create(tenantId, "Merkez Depo", "MERKEZ", isDefault: true).Value;
+        ctx.Warehouses.Add(warehouse);
+
+        var item = StockItem.Open(tenantId, warehouse.Id, productId).Value;
         item.RecordIntake(Guid.NewGuid(), quantity, new DateTime(2026, 7, 5, 8, 0, 0, DateTimeKind.Utc));
         ctx.StockItems.Add(item);
         await ctx.SaveChangesAsync();
     }
+
+    private static RecordSpoilageHandler NewHandler(InventoryDbContext ctx) =>
+        new(new StockItemRepository(ctx), new WarehouseRepository(ctx), ctx);
 
     [Fact]
     public async Task Handle_RecordsSpoilage_QuantityDecreases_AndWritesEventToOutboxWithTenant()
@@ -54,7 +60,7 @@ public sealed class RecordSpoilageHandlerTests
 
         await using (var ctx = CreateContext(stub, dbName))
         {
-            var handler = new RecordSpoilageHandler(new StockItemRepository(ctx), ctx);
+            var handler = NewHandler(ctx);
             var result = await handler.Handle(
                 new RecordSpoilageCommand(productId, 20.000m, "çürüme", new DateTime(2026, 7, 6, 10, 0, 0, DateTimeKind.Utc)),
                 CancellationToken.None);
@@ -89,7 +95,7 @@ public sealed class RecordSpoilageHandlerTests
 
         await using (var ctx = CreateContext(stub, dbName))
         {
-            var handler = new RecordSpoilageHandler(new StockItemRepository(ctx), ctx);
+            var handler = NewHandler(ctx);
             var result = await handler.Handle(
                 new RecordSpoilageCommand(productId, 11.000m, "çürüme", new DateTime(2026, 7, 6, 10, 0, 0, DateTimeKind.Utc)),
                 CancellationToken.None);
@@ -115,7 +121,11 @@ public sealed class RecordSpoilageHandlerTests
         var stub = new StubTenantContext { TenantId = tenantId };
 
         await using var ctx = CreateContext(stub, dbName);
-        var handler = new RecordSpoilageHandler(new StockItemRepository(ctx), ctx);
+        // Varsayılan depo var ama ürünün stok kalemi yok → NotFound (depo yokluğu değil).
+        ctx.Warehouses.Add(Warehouse.Create(tenantId, "Merkez Depo", "MERKEZ", isDefault: true).Value);
+        await ctx.SaveChangesAsync();
+
+        var handler = NewHandler(ctx);
 
         var result = await handler.Handle(
             new RecordSpoilageCommand(Guid.NewGuid(), 5.000m, "çürüme", DateTime.UtcNow),

@@ -26,6 +26,8 @@ public sealed class InventoryDbContext : TenantDbContextBase, IUnitOfWork
 
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
 
+    public DbSet<Warehouse> Warehouses => Set<Warehouse>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

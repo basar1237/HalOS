@@ -14,17 +14,25 @@ namespace HalOS.Inventory.Tests.Domain;
 public sealed class StockItemTests
 {
     private readonly Guid _tenantId = Guid.NewGuid();
+    private readonly Guid _warehouseId = Guid.NewGuid();
     private readonly Guid _productId = Guid.NewGuid();
 
     private static readonly DateTime OccurredAt = new(2026, 7, 6, 10, 0, 0, DateTimeKind.Utc);
 
-    private StockItem NewItem() => StockItem.Open(_tenantId, _productId).Value;
+    private StockItem NewItem() => StockItem.Open(_tenantId, _warehouseId, _productId).Value;
 
     [Fact]
     public void Open_MissingProduct_Fails()
     {
-        StockItem.Open(_tenantId, Guid.Empty).Error
+        StockItem.Open(_tenantId, _warehouseId, Guid.Empty).Error
             .Should().Be(StockItemErrors.ProductRequired);
+    }
+
+    [Fact]
+    public void Open_MissingWarehouse_Fails()
+    {
+        StockItem.Open(_tenantId, Guid.Empty, _productId).Error
+            .Should().Be(StockItemErrors.WarehouseRequired);
     }
 
     [Fact]
@@ -36,6 +44,8 @@ public sealed class StockItemTests
         item.Movements.Should().BeEmpty();
         item.ProductId.Should().Be(_productId);
         item.TenantId.Should().Be(_tenantId);
+        item.WarehouseId.Should().Be(_warehouseId);
+        item.ReorderThreshold.Should().BeNull();
     }
 
     [Fact]
@@ -182,5 +192,87 @@ public sealed class StockItemTests
         second.IsSuccess.Should().BeTrue();
         item.Movements.Count(m => m.Kind == StockMovementKind.SaleOut).Should().Be(1);
         item.QuantityOnHand.Should().Be(60.000m);
+    }
+
+    [Fact]
+    public void SetReorderThreshold_NegativeThreshold_Fails()
+    {
+        var item = NewItem();
+
+        item.SetReorderThreshold(-1m).Error
+            .Should().Be(StockItemErrors.NegativeReorderThreshold);
+    }
+
+    [Fact]
+    public void RecordSaleOut_DropsToOrBelowThreshold_RaisesLowStockAlerted()
+    {
+        // docs/06 S2.1 stok uyarıları: kalan eşiğe/altına inince LowStockAlerted (eşik geçişinde).
+        var item = NewItem();
+        item.RecordIntake(Guid.NewGuid(), 100.000m, OccurredAt);
+        item.SetReorderThreshold(20.000m);
+
+        // 100 → 15 (eşik 20'nin altına iner) → uyarı.
+        item.RecordSaleOut(Guid.NewGuid(), 85.000m, OccurredAt);
+
+        var evt = item.DomainEvents.OfType<LowStockAlerted>().Should().ContainSingle().Subject;
+        evt.QuantityOnHand.Should().Be(15.000m);
+        evt.ReorderThreshold.Should().Be(20.000m);
+        evt.ProductId.Should().Be(_productId);
+        evt.WarehouseId.Should().Be(_warehouseId);
+        evt.TenantId.Should().Be(_tenantId);
+    }
+
+    [Fact]
+    public void RecordSaleOut_StaysAboveThreshold_DoesNotRaiseLowStockAlerted()
+    {
+        var item = NewItem();
+        item.RecordIntake(Guid.NewGuid(), 100.000m, OccurredAt);
+        item.SetReorderThreshold(20.000m);
+
+        // 100 → 50 (eşiğin üstünde kalır) → uyarı YOK.
+        item.RecordSaleOut(Guid.NewGuid(), 50.000m, OccurredAt);
+
+        item.DomainEvents.OfType<LowStockAlerted>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void RecordSaleOut_NullThreshold_NeverRaisesLowStockAlerted()
+    {
+        var item = NewItem();
+        item.RecordIntake(Guid.NewGuid(), 100.000m, OccurredAt);
+        // Eşik ayarlanmadı (null) → hiç uyarı yok, kalan 0'a inse bile.
+        item.RecordSaleOut(Guid.NewGuid(), 100.000m, OccurredAt);
+
+        item.DomainEvents.OfType<LowStockAlerted>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void RecordSaleOut_AlreadyBelowThreshold_DoesNotRaiseAgain_OnlyOnCrossing()
+    {
+        // Eşik geçişi bir kez: kalan zaten eşiğin altındayken tekrar çıkış olursa yeniden uyarı yok.
+        var item = NewItem();
+        item.RecordIntake(Guid.NewGuid(), 100.000m, OccurredAt);
+        item.SetReorderThreshold(20.000m);
+
+        item.RecordSaleOut(Guid.NewGuid(), 85.000m, OccurredAt); // 100 → 15: uyarı (geçiş)
+        item.ClearDomainEvents();
+
+        item.RecordSaleOut(Guid.NewGuid(), 5.000m, OccurredAt); // 15 → 10: zaten altında, yeni uyarı yok
+
+        item.DomainEvents.OfType<LowStockAlerted>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void RecordSpoilage_DropsToOrBelowThreshold_RaisesLowStockAlerted()
+    {
+        var item = NewItem();
+        item.RecordIntake(Guid.NewGuid(), 100.000m, OccurredAt);
+        item.SetReorderThreshold(20.000m);
+
+        // 100 → 20 (eşiğe iner, dahil) → fire uyarısı + SpoilageRecorded.
+        item.RecordSpoilage(80.000m, "çürüme", OccurredAt);
+
+        item.DomainEvents.OfType<LowStockAlerted>().Should().ContainSingle();
+        item.DomainEvents.OfType<SpoilageRecorded>().Should().ContainSingle();
     }
 }

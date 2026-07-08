@@ -34,6 +34,12 @@ public static class ApiResults
             "StockItem.NonPositiveQuantity" => StatusCodes.Status422UnprocessableEntity,
             "StockItem.SpoilageReasonRequired" => StatusCodes.Status422UnprocessableEntity,
             "StockItem.ProductRequired" => StatusCodes.Status422UnprocessableEntity,
+            "StockItem.WarehouseRequired" => StatusCodes.Status422UnprocessableEntity,
+            "StockItem.NegativeReorderThreshold" => StatusCodes.Status422UnprocessableEntity,
+            "Warehouse.NotFound" => StatusCodes.Status404NotFound,
+            "Warehouse.CodeAlreadyExists" => StatusCodes.Status409Conflict,
+            "Warehouse.NameRequired" => StatusCodes.Status422UnprocessableEntity,
+            "Warehouse.CodeRequired" => StatusCodes.Status422UnprocessableEntity,
             _ => StatusCodes.Status400BadRequest
         };
 

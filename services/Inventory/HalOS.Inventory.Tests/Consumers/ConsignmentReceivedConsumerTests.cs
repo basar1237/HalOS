@@ -14,12 +14,13 @@ using Xunit;
 namespace HalOS.Inventory.Tests.Consumers;
 
 /// <summary>
-/// ConsignmentReceivedConsumer testleri (docs/02 §229: ConsignmentReceived → stok girişi). Gerçek
-/// InventoryDbContext (EF Core InMemory) + gerçek StockItemRepository ile uçtan uca doğrular:
+/// ConsignmentReceivedConsumer testleri (docs/02 §229: ConsignmentReceived → stok girişi; docs/06
+/// S2.1 varsayılan depo). Gerçek InventoryDbContext (EF Core InMemory) + gerçek StockItemRepository +
+/// WarehouseProvider ile uçtan uca doğrular:
 /// <list type="bullet">
-///   <item>Mal geliş partisinin HER kalemi için ilgili ürünün stoğu artar (giriş).</item>
+///   <item>Mal geliş partisinin HER kalemi için ilgili ürünün VARSAYILAN depodaki stoğu artar.</item>
+///   <item>Varsayılan depo yoksa "Merkez Depo" (Code="MERKEZ") lazım olunca oluşturulur.</item>
 ///   <item>Idempotency: aynı event iki kez → çift giriş oluşmaz (kalem başına tek).</item>
-///   <item>Stok kalemi yoksa açılır (upsert); tenant testte DbContext bağlamına verilir.</item>
 /// </list>
 /// </summary>
 public sealed class ConsignmentReceivedConsumerTests
@@ -36,6 +37,15 @@ public sealed class ConsignmentReceivedConsumerTests
             .UseInMemoryDatabase(dbName)
             .Options;
         return new InventoryDbContext(options, tenantContext);
+    }
+
+    private static ConsignmentReceivedConsumer NewConsumer(InventoryDbContext ctx)
+    {
+        var stockItems = new StockItemRepository(ctx);
+        var warehouses = new WarehouseRepository(ctx);
+        var provider = new WarehouseProvider(warehouses);
+        return new ConsignmentReceivedConsumer(
+            stockItems, provider, ctx, NullLogger<ConsignmentReceivedConsumer>.Instance);
     }
 
     private static ConsumeContext<ConsignmentReceived> ContextFor(ConsignmentReceived message)
@@ -68,8 +78,7 @@ public sealed class ConsignmentReceivedConsumerTests
 
         await using (var ctx = CreateContext(stub, dbName))
         {
-            var consumer = new ConsignmentReceivedConsumer(
-                new StockItemRepository(ctx), ctx, NullLogger<ConsignmentReceivedConsumer>.Instance);
+            var consumer = NewConsumer(ctx);
             await consumer.Consume(ContextFor(SampleConsignment(
                 tenantId, Guid.NewGuid(),
                 (Guid.NewGuid(), productA, 100.000m),
@@ -84,6 +93,12 @@ public sealed class ConsignmentReceivedConsumerTests
             a.QuantityOnHand.Should().Be(100.000m);
             a.Movements.Single().Kind.Should().Be(StockMovementKind.Intake);
             b.QuantityOnHand.Should().Be(50.000m);
+
+            // Varsayılan "Merkez Depo" lazım olunca oluşturuldu ve giriş oraya yazıldı (docs/06 S2.1).
+            var defaultWh = await ctx.Warehouses.SingleAsync();
+            defaultWh.Code.Should().Be("MERKEZ");
+            defaultWh.IsDefault.Should().BeTrue();
+            a.WarehouseId.Should().Be(defaultWh.Id);
         }
     }
 
@@ -98,15 +113,13 @@ public sealed class ConsignmentReceivedConsumerTests
 
         await using (var ctx = CreateContext(stub, dbName))
         {
-            var consumer = new ConsignmentReceivedConsumer(
-                new StockItemRepository(ctx), ctx, NullLogger<ConsignmentReceivedConsumer>.Instance);
+            var consumer = NewConsumer(ctx);
             await consumer.Consume(ContextFor(message));
         }
 
         await using (var ctx = CreateContext(stub, dbName))
         {
-            var consumer = new ConsignmentReceivedConsumer(
-                new StockItemRepository(ctx), ctx, NullLogger<ConsignmentReceivedConsumer>.Instance);
+            var consumer = NewConsumer(ctx);
             await consumer.Consume(ContextFor(message)); // broker retry
         }
 

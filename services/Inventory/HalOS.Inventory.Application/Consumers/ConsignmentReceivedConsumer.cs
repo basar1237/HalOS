@@ -14,7 +14,11 @@ namespace HalOS.Inventory.Application.Consumers;
 /// <b>Idempotency</b> (docs/04 §5): kalem başına (<c>ConsignmentItemId</c>) en fazla bir giriş; aynı
 /// event tekrar gelse (broker retry) çift stok girişi oluşmaz — koruma domain
 /// <see cref="StockItem.RecordIntake"/> içindedir. İlgili ürünün stok kalemi yoksa açılır (upsert;
-/// tenant + ürün başına tek — UNIQUE(tenant_id, product_id)).
+/// tenant + depo + ürün başına tek — UNIQUE(tenant_id, warehouse_id, product_id)).
+///
+/// <b>Depo</b> (docs/06 S2.1): olay warehouse taşımadığından giriş tenant'ın VARSAYILAN deposuna
+/// yazılır; varsayılan depo yoksa <see cref="IWarehouseProvider"/> ile "Merkez Depo" lazım olunca
+/// oluşturulur (aynı transaction'da atomik).
 ///
 /// <b>Tenant</b>: broker mesajında HTTP/JWT bağlamı olmadığından tenant, event'in kendisiyle
 /// (<see cref="ITenantScopedEvent"/>) taşınır ve <c>TenantConsumeFilter</c> ile ambient tenant'a
@@ -26,15 +30,18 @@ namespace HalOS.Inventory.Application.Consumers;
 public sealed class ConsignmentReceivedConsumer : IConsumer<ConsignmentReceived>
 {
     private readonly IStockItemRepository _stockItems;
+    private readonly IWarehouseProvider _warehouses;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<ConsignmentReceivedConsumer> _logger;
 
     public ConsignmentReceivedConsumer(
         IStockItemRepository stockItems,
+        IWarehouseProvider warehouses,
         IUnitOfWork unitOfWork,
         ILogger<ConsignmentReceivedConsumer> logger)
     {
         _stockItems = stockItems;
+        _warehouses = warehouses;
         _unitOfWork = unitOfWork;
         _logger = logger;
     }
@@ -44,14 +51,17 @@ public sealed class ConsignmentReceivedConsumer : IConsumer<ConsignmentReceived>
         var message = context.Message;
         var ct = context.CancellationToken;
 
+        // Olay depo taşımaz → tenant'ın varsayılan deposuna yazılır (yoksa "Merkez Depo" oluşturulur).
+        var warehouse = await _warehouses.GetOrCreateDefaultAsync(message.TenantId, ct);
+
         // Bu Consume çağrısında açılan/getirilen stok kalemlerini ürün bazında izler; aynı ürün
-        // birden çok kalemde geçerse ikinci kez yeni kalem açılıp UNIQUE(tenant_id, product_id)
-        // ihlali oluşmasın (Finance GetOrOpen deseniyle birebir).
+        // birden çok kalemde geçerse ikinci kez yeni kalem açılıp UNIQUE(tenant_id, warehouse_id,
+        // product_id) ihlali oluşmasın (Finance GetOrOpen deseniyle birebir).
         var openedItems = new Dictionary<Guid, StockItem>();
 
         foreach (var item in message.Items)
         {
-            var stockItem = await GetOrOpenAsync(openedItems, message.TenantId, item.ProductId, ct);
+            var stockItem = await GetOrOpenAsync(openedItems, message.TenantId, warehouse.Id, item.ProductId, ct);
 
             var result = stockItem.RecordIntake(item.ConsignmentItemId, item.Quantity, message.ReceivedAt);
             if (result.IsFailure)
@@ -81,13 +91,14 @@ public sealed class ConsignmentReceivedConsumer : IConsumer<ConsignmentReceived>
     }
 
     /// <summary>
-    /// Ürünün stok kalemini getirir; yoksa açar ve repository'ye ekler (upsert). Aynı Consume
-    /// çağrısında zaten açılmış/getirilmiş bir kalem varsa onu yeniden kullanır — yeni satır açıp
-    /// UNIQUE(tenant_id, product_id) ihlaline yol açmaz.
+    /// Varsayılan depodaki ürünün stok kalemini getirir; yoksa açar ve repository'ye ekler (upsert).
+    /// Aynı Consume çağrısında zaten açılmış/getirilmiş bir kalem varsa onu yeniden kullanır — yeni
+    /// satır açıp UNIQUE(tenant_id, warehouse_id, product_id) ihlaline yol açmaz.
     /// </summary>
     private async Task<StockItem> GetOrOpenAsync(
         Dictionary<Guid, StockItem> openedItems,
         Guid tenantId,
+        Guid warehouseId,
         Guid productId,
         CancellationToken ct)
     {
@@ -96,11 +107,11 @@ public sealed class ConsignmentReceivedConsumer : IConsumer<ConsignmentReceived>
             return tracked;
         }
 
-        var stockItem = await _stockItems.GetByProductIdAsync(productId, ct);
+        var stockItem = await _stockItems.GetByWarehouseAndProductAsync(warehouseId, productId, ct);
         if (stockItem is null)
         {
             // Open, tenant'ı parametre alır; ambient tenant SaveChanges'te de aynı değeri uygular (BK-8).
-            stockItem = StockItem.Open(tenantId, productId).Value;
+            stockItem = StockItem.Open(tenantId, warehouseId, productId).Value;
             _stockItems.Add(stockItem);
         }
 
