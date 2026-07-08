@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Search.Domain — arama okuma-modeli (CQRS read model) doküman tipleri. Postgres/DbContext YOK
+    (docs/04 ADR-007: arama depoları ElasticSearch). Sıfır dış paket; yalnız POCO doküman modelleri
+    (docs/07 §2). Kaynak servislerin DB'sine dokunmaz — event'lerden beslenen ayrı store.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

@@ -275,6 +275,41 @@ services:
     networks:
       - halos
 
+  # Search (Arama) — S2.3 / docs/06 (Elasticsearch okuma modeli, ADR-007).
+  #   docker compose --profile apps up -d search
+  # Search, PartyRegistered + SaleCompleted'i RabbitMQ'dan tüketir (ADR-006) ve Elasticsearch'e
+  # party/satış arama dokümanları indeksler ("Ali'nin her şeyini 1 sn'de"). SALT tüketici/indeksleyici:
+  # kaynak servislerin DB'sine dokunmaz, event YAYMAZ. Postgres/DbContext YOK.
+  search:
+    profiles: ["apps"]
+    build:
+      context: ..
+      dockerfile: services/Search/HalOS.Search.Api/Dockerfile
+    container_name: halos-search
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      # Arama deposu: Elasticsearch (ADR-007). URL boş bırakılırsa servis InMemory'ye düşer.
+      Elasticsearch__Url: ${SEARCH_ELASTICSEARCH_URL:-http://elasticsearch:9200}
+      Elasticsearch__IndexName: ${SEARCH_INDEX_NAME:-halos-search}
+      # Event bus (ADR-006): PartyRegistered + SaleCompleted tüketimi (yayın YOK).
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: "/"
+      RabbitMq__Username: ${RABBITMQ_USER:-halos}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:-halos_dev_pw}
+      # JWT imza anahtarı üretimde Vault/ortam değişkeninden gelir (docs/04 §7).
+      Jwt__SigningKey: ${SEARCH_JWT_SIGNING_KEY:-dev-only-signing-key-change-me-please-0123456789abcdef}
+    ports:
+      - "${SEARCH_PORT:-5095}:8080"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - halos
+
   # ---------------------------------------------------------------------------
   # AI Gateway (Python/FastAPI) — ERP <-> AI güvenli sınırı (docs/04 ADR-002, S2.4).
   #   docker compose --profile apps up -d ai-gateway

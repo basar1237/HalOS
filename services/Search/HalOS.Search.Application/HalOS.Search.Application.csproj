@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Search.Application — arama soyutlaması (ISearchIndex), consumer'lar (PartyRegistered/SaleCompleted
+    -> indeks) ve arama sorgusu. Contracts'a bağlıdır (tüketilen servisler-arası event'ler +
+    ITenantScopedEvent). MassTransit.Abstractions consumer arayüzü (IConsumer) için — taşıma
+    (RabbitMQ) Infrastructure'da kurulur. Postgres/DbContext YOK (docs/04 ADR-007).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HalOS.Search.Domain\HalOS.Search.Domain.csproj" />
+    <ProjectReference Include="..\..\..\building-blocks\HalOS.BuildingBlocks.Contracts\HalOS.BuildingBlocks.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MassTransit.Abstractions" Version="8.5.10" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
+  </ItemGroup>
+
+</Project>

@@ -161,8 +161,13 @@ public sealed class Party : AggregateRoot<Guid>, ITenantOwned
             party._roles.Add(PartyRole.Create(party.Id, tenantId, role));
         }
 
+        // Arama okuma modeli (Search servisi, docs/06 S2.3) için kimlik numarası (TCKN varsa o, yoksa
+        // VKN) ve rol(ler) event'le taşınır — consumer tekil sorgu yapmadan tam arama dokümanı kurar
+        // (docs/07 §5). PartyType enum değil metindir (Contracts servis domain'ine bağlanamaz).
+        var taxNumber = normalizedTckn ?? normalizedVkn;
+        var partyType = string.Join(",", roles.Distinct().Select(r => r.ToString()));
         party.RaiseDomainEvent(
-            new PartyRegistered(party.Id, tenantId, party.DisplayName, party.CreatedOnUtc));
+            new PartyRegistered(party.Id, tenantId, party.DisplayName, taxNumber, partyType, party.CreatedOnUtc));
 
         // Müstahsil rolüyle birlikte stopaj profili tanımlıysa Sales oran senkronu için
         // cross-service event yayınla (hakediş doğruluğu — docs/02 §6). Profil zaten Producer

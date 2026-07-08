@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    Search.Api — hafif arama servisi giriş noktası (docs/06 S2.3). JWT auth + MassTransit (2 consumer)
+    + ISearchIndex. DbContext/Postgres YOK → AddHalOSMessaging<TContext> KULLANILMAZ (o OutboxDispatcher
+    ister); MassTransit doğrudan kurulur (AddMassTransit + RabbitMQ + TenantConsumeFilter). Search
+    salt tüketici/indeksleyicidir, event YAYMAZ (OutboxDispatcher yok).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MassTransit" Version="8.5.10" />
+    <PackageReference Include="MassTransit.RabbitMQ" Version="8.5.10" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.11" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.10.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.10.1" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.10.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.Seq" Version="8.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HalOS.Search.Infrastructure\HalOS.Search.Infrastructure.csproj" />
+    <ProjectReference Include="..\HalOS.Search.Application\HalOS.Search.Application.csproj" />
+    <ProjectReference Include="..\HalOS.Search.Domain\HalOS.Search.Domain.csproj" />
+    <ProjectReference Include="..\..\..\building-blocks\HalOS.BuildingBlocks.Infrastructure\HalOS.BuildingBlocks.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\building-blocks\HalOS.BuildingBlocks.Application\HalOS.BuildingBlocks.Application.csproj" />
+  </ItemGroup>
+
+</Project>
