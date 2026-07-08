@@ -23,8 +23,12 @@ const NOTIFY_METHOD = 'notify';
 /** Bellekte tutulan bildirim tavanı; eski kayıtlar düşer (kalıcılık yok, salt canlı akış). */
 const MAX_FEED = 50;
 
+// SignalR hub API Gateway üzerinden proxy'lenir (docs/04 §3: istemci yalnız GW'ye konuşur;
+// /hubs/dashboard → Notification). NEXT_PUBLIC_NOTIFICATION_URL verilmezse Gateway tabanına düşer.
 const NOTIFICATION_URL =
-  process.env.NEXT_PUBLIC_NOTIFICATION_URL ?? 'http://localhost:5096';
+  process.env.NEXT_PUBLIC_NOTIFICATION_URL ??
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  'http://localhost:5000';
 
 export interface DashboardFeed {
   /** En yeni önce sıralı canlı bildirimler (en fazla MAX_FEED). */

@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       try {
-        const me = await apiClient.get<CurrentUserDto>('/me');
+        const me = await apiClient.get<CurrentUserDto>('/api/identity/me');
         if (!cancelled) {
           setUser(toUser(me));
           setTenantId(me.tenantId);
@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (credentials: LoginCredentials) => {
     // Identity kimlik doğrular, token çifti + kullanıcı özeti döner (AuthenticationResult).
     const result = await apiClient.post<AuthenticationResult>(
-      '/auth/login',
+      '/api/identity/auth/login',
       credentials,
     );
 
@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Görünen ad login yanıtında yok → /me ile tam kullanıcıyı çöz. /me başarısız olsa bile
     // giriş geçerli; login yanıtındaki özetle asgari kullanıcıyı kur.
     try {
-      const me = await apiClient.get<CurrentUserDto>('/me');
+      const me = await apiClient.get<CurrentUserDto>('/api/identity/me');
       setUser(toUser(me));
       setTenantId(me.tenantId);
     } catch {
