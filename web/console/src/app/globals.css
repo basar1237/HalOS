@@ -164,6 +164,161 @@ a {
   font-size: 20px;
 }
 
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.page-head .page-title {
+  margin: 0 0 20px;
+}
+
+/* --- Canlı bağlantı göstergesi (SignalR durumu) --- */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+}
+
+.status-pill__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+}
+
+.status-pill--connected {
+  color: var(--color-primary-dark);
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.status-pill--connected .status-pill__dot {
+  background: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.18);
+}
+
+.status-pill--connecting .status-pill__dot,
+.status-pill--reconnecting .status-pill__dot {
+  background: #d97706;
+}
+
+.status-pill--reconnecting,
+.status-pill--connecting {
+  color: #b45309;
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+/* --- Canlı metrik kartı --- */
+.card--live {
+  border-color: #bbf7d0;
+}
+
+.card__metric {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.card__sub {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* --- Canlı akış listesi --- */
+.feed {
+  margin-top: 28px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 18px;
+}
+
+.feed__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.feed__title {
+  margin: 0;
+  font-size: 15px;
+}
+
+.feed__clear {
+  border: 1px solid var(--color-border);
+  background: transparent;
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.feed__clear:hover {
+  background: var(--color-bg);
+}
+
+.feed__empty {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.feed__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.feed__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.feed__item:last-child {
+  border-bottom: none;
+}
+
+.feed__item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.feed__item-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.feed__item-message {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.feed__item-time {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
 /* --- Giriş sayfası --- */
 .login-page {
   min-height: 100vh;
