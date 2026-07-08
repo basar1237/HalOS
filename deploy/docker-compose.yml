@@ -275,6 +275,36 @@ services:
     networks:
       - halos
 
+  # ---------------------------------------------------------------------------
+  # AI Gateway (Python/FastAPI) — ERP <-> AI güvenli sınırı (docs/04 ADR-002, S2.4).
+  #   docker compose --profile apps up -d ai-gateway
+  # SALT-OKUMA: ERP'nin /reports/* uçlarını okur; hiçbir yazma yapmaz. Gelen JWT'yi
+  # ERP (Identity) ile AYNI imza anahtarıyla doğrular. ANTHROPIC_API_KEY boşsa Stub
+  # LLM ile anahtarsız çalışır (gerçek Claude çağrısı yapılmaz).
+  # ---------------------------------------------------------------------------
+  ai-gateway:
+    profiles: ["apps"]
+    build:
+      context: ../ai-gateway
+      dockerfile: Dockerfile
+    container_name: halos-ai-gateway
+    restart: unless-stopped
+    environment:
+      # Anthropic anahtarı ortamdan geçirilir; boş bırakılırsa Stub LLM devreye girer.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-6}
+      # JWT imza anahtarı ERP servisleriyle AYNI olmalı (docs/04 §7).
+      JWT__SIGNING_KEY: ${AI_GATEWAY_JWT_SIGNING_KEY:-dev-only-signing-key-change-me-please-0123456789abcdef}
+      JWT__ISSUER: HalOS.Identity
+      JWT__AUDIENCE: HalOS
+      # ERP SALT-OKUMA rapor uçları (compose ağı içi servis adları).
+      ERP__SALES_BASE_URL: ${AI_GATEWAY_SALES_URL:-http://sales:8080}
+      ERP__FINANCE_BASE_URL: ${AI_GATEWAY_FINANCE_URL:-http://finance:8080}
+    ports:
+      - "${AI_GATEWAY_PORT:-8000}:8080"
+    networks:
+      - halos
+
 volumes:
   postgres-data:
   redis-data:

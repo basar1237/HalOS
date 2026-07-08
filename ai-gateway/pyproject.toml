@@ -1,0 +1,14 @@
+# AI Gateway — opsiyonel proje meta + pytest yapılandırması.
+# Bağımlılık yönetimi requirements.txt üzerinden (pip); burada build-backend TANIMLANMAZ.
+
+[project]
+name = "halos-ai-gateway"
+version = "0.1.0"
+description = "HalOS AI Gateway — ERP <-> AI güvenli sınırı (ADR-002), Claude tabanlı AI muhasebeci."
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+# Testler kök dizinden çalışır; 'app' ve 'tests' paketleri import edilebilir olmalı.
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"

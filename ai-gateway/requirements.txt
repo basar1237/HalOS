@@ -1,0 +1,21 @@
+# HalOS AI Gateway — Python bağımlılıkları (pip; uv/poetry YOK).
+# Python 3.10+ hedefidir.
+
+# Web çerçevesi + ASGI sunucu
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# Yapılandırma (ortam değişkeni / .env)
+pydantic-settings==2.7.1
+
+# ERP SALT-OKUMA HTTP istemcisi (aynı zamanda FastAPI TestClient tarafından kullanılır)
+httpx==0.28.1
+
+# JWT doğrulama (HS256) — ERP Identity ile aynı imza anahtarı
+PyJWT==2.10.1
+
+# Anthropic Claude resmi SDK (anahtar yoksa import edilmez / kullanılmaz)
+anthropic==0.42.0
+
+# Test
+pytest==8.3.4
