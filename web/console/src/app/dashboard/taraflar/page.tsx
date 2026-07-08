@@ -23,6 +23,14 @@ const COLUMNS: Column<Party>[] = [
     cell: (p) => (p.keepsRecords ? 'Evet' : 'Hayır'),
   },
   { header: 'Durum', cell: (p) => (p.isActive ? 'Aktif' : 'Pasif') },
+  {
+    header: '',
+    cell: (p) => (
+      <Link href={`/dashboard/taraflar/${p.id}`} className="row-link">
+        Detay
+      </Link>
+    ),
+  },
 ];
 
 export default function PartiesPage() {
