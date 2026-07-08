@@ -133,6 +133,143 @@ a {
   color: var(--color-text-muted);
 }
 
+.page-state--error {
+  color: #b91c1c;
+}
+
+.page-lead {
+  margin: -12px 0 16px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+/* --- Veri tablosu --- */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.data-table th,
+.data-table td {
+  text-align: left;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.data-table thead th {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tbody tr:hover {
+  background: var(--color-bg);
+}
+
+.data-table__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Sayfalama --- */
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.pager__btn {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: 6px;
+  padding: 7px 14px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.pager__btn:hover:not(:disabled) {
+  background: var(--color-bg);
+}
+
+.pager__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pager__info {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+/* --- Rozet --- */
+.badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.badge--ok {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: var(--color-primary-dark);
+}
+
+.badge--warn {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #b45309;
+}
+
+.badge--error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+/* --- Yakında yer tutucu --- */
+.coming-soon {
+  background: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: 10px;
+  padding: 40px;
+  text-align: center;
+}
+
+.coming-soon__badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+.coming-soon__note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  max-width: 480px;
+  margin-inline: auto;
+}
+
 /* --- Kartlar (dashboard) --- */
 .card-grid {
   display: grid;
