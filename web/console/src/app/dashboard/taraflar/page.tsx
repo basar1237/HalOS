@@ -2,6 +2,7 @@
 
 // Taraflar (müstahsil/alıcı/tüccar/konsinyeci) — sayfalanmış liste (GET /api/party/parties).
 
+import Link from 'next/link';
 import { useCallback } from 'react';
 
 import { PagedTable, type Column } from '@/components/paged-table';
@@ -34,7 +35,12 @@ export default function PartiesPage() {
 
   return (
     <div>
-      <h1 className="page-title">Taraflar</h1>
+      <div className="page-head">
+        <h1 className="page-title">Taraflar</h1>
+        <Link href="/dashboard/taraflar/yeni" className="btn-primary btn-inline">
+          Yeni Taraf
+        </Link>
+      </div>
       <PagedTable
         state={state}
         columns={COLUMNS}
