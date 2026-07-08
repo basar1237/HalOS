@@ -236,6 +236,12 @@ a {
   color: var(--color-text-muted);
 }
 
+.card__error {
+  margin: 0;
+  font-size: 12px;
+  color: #b91c1c;
+}
+
 /* --- Canlı akış listesi --- */
 .feed {
   margin-top: 28px;

@@ -1,17 +1,19 @@
 'use client';
 
-// Kontrol paneli — canlı SignalR dashboard (docs/06 S2.2). Notification servisinden gelen
-// bildirimlerle "Günlük Satış" kartı ve canlı akış gerçek zamanlı güncellenir. Diğer kartlar
-// ileriki fazda kendi okuma-modeli uçlarına bağlanacak (şimdilik iskelet).
+// Kontrol paneli — okuma-modeli metrikleri (API Gateway üzerinden) + canlı SignalR akışı.
+// "Günlük Satış" backend günlük özetiyle dolar ve yeni satış bildirimleriyle canlı artar.
+// Cari yaşlandırma ve düşük stok kartları rapor uçlarından gelir. Kalan kartlar (bekleyen
+// hakediş / e-belge / mal geliş) uygun özet uç eklenince bağlanacak (şimdilik "Veri yok").
 
 import { useMemo } from 'react';
 
-import { useDashboardFeed } from '@/features/realtime/use-dashboard-feed';
+import { useDashboardMetrics } from '@/features/dashboard/use-dashboard-metrics';
 import {
   NotificationType,
   readNumber,
   type ConnectionStatus,
 } from '@/features/realtime/types';
+import { useDashboardFeed } from '@/features/realtime/use-dashboard-feed';
 
 const STATUS_LABEL: Record<ConnectionStatus, string> = {
   disconnected: 'Bağlantı yok',
@@ -20,7 +22,6 @@ const STATUS_LABEL: Record<ConnectionStatus, string> = {
   reconnecting: 'Yeniden bağlanıyor…',
 };
 
-// Tutar biçimi — TR yerelleştirme (docs/02 sözlük: TL). Backend kültür-bağımsız taşır.
 const TRY = new Intl.NumberFormat('tr-TR', {
   style: 'currency',
   currency: 'TRY',
@@ -35,20 +36,23 @@ function formatTime(iso: string): string {
 
 export default function DashboardPage() {
   const { notifications, status, clear } = useDashboardFeed();
+  const { daily, aging, lowStock } = useDashboardMetrics();
 
-  // Bu oturumda alınan satış bildirimlerinden canlı net toplam. Kalıcı gün-toplamı değil;
-  // sayfa açıkken biriken canlı özet (gerçek gün-toplamı Sales okuma-modelinden gelecek).
-  const liveSalesTotal = useMemo(
-    () =>
-      notifications
-        .filter((n) => n.type === NotificationType.SaleCompleted)
-        .reduce((sum, n) => sum + (readNumber(n.payload, 'netAmount') ?? 0), 0),
-    [notifications],
-  );
+  // Bu oturumda gelen canlı satışların net toplamı ve adedi (backend günlük özetine eklenir).
+  const liveSales = useMemo(() => {
+    const sales = notifications.filter(
+      (n) => n.type === NotificationType.SaleCompleted,
+    );
+    const net = sales.reduce(
+      (sum, n) => sum + (readNumber(n.payload, 'netAmount') ?? 0),
+      0,
+    );
+    return { count: sales.length, net };
+  }, [notifications]);
 
-  const saleCount = notifications.filter(
-    (n) => n.type === NotificationType.SaleCompleted,
-  ).length;
+  // Görüntülenen günlük net = backend günlük net + oturum içi canlı satışlar.
+  const dailyNet = (daily.data?.net ?? 0) + liveSales.net;
+  const dailyCount = (daily.data?.count ?? 0) + liveSales.count;
 
   return (
     <div>
@@ -61,21 +65,61 @@ export default function DashboardPage() {
       </div>
 
       <div className="card-grid">
+        {/* Günlük Satış — backend özeti + canlı artış */}
         <section className="card card--live">
           <p className="card__title">Günlük Satış (canlı)</p>
-          <p className="card__metric">{TRY.format(liveSalesTotal)}</p>
-          <p className="card__sub">{saleCount} satış · oturum içi</p>
+          {daily.loading ? (
+            <p className="card__placeholder">Yükleniyor…</p>
+          ) : daily.error ? (
+            <p className="card__error">{daily.error}</p>
+          ) : (
+            <>
+              <p className="card__metric">{TRY.format(dailyNet)}</p>
+              <p className="card__sub">{dailyCount} satış · bugün</p>
+            </>
+          )}
         </section>
-        <section className="card">
-          <p className="card__title">Bekleyen Hakediş</p>
-          <p className="card__placeholder">Veri yok</p>
-        </section>
+
+        {/* Açık Cari Bakiye — cari yaşlandırma toplamı */}
         <section className="card">
           <p className="card__title">Açık Cari Bakiye</p>
-          <p className="card__placeholder">Veri yok</p>
+          {aging.loading ? (
+            <p className="card__placeholder">Yükleniyor…</p>
+          ) : aging.error ? (
+            <p className="card__error">{aging.error}</p>
+          ) : aging.data ? (
+            <>
+              <p className="card__metric">{TRY.format(aging.data.totalAmount)}</p>
+              <p className="card__sub">
+                {aging.data.totalAccountCount} cari ·{' '}
+                {TRY.format(aging.data.days31Plus.amount)} 31+ gün
+              </p>
+            </>
+          ) : (
+            <p className="card__placeholder">Veri yok</p>
+          )}
         </section>
+
+        {/* Düşük Stok Uyarısı — yeniden-sipariş eşiği altındaki kalemler */}
         <section className="card">
-          <p className="card__title">Bugünkü Mal Geliş</p>
+          <p className="card__title">Düşük Stok Uyarısı</p>
+          {lowStock.loading ? (
+            <p className="card__placeholder">Yükleniyor…</p>
+          ) : lowStock.error ? (
+            <p className="card__error">{lowStock.error}</p>
+          ) : lowStock.data ? (
+            <>
+              <p className="card__metric">{lowStock.data.length}</p>
+              <p className="card__sub">eşik altı ürün</p>
+            </>
+          ) : (
+            <p className="card__placeholder">Veri yok</p>
+          )}
+        </section>
+
+        {/* Henüz özet uç yok — sonraki fazda bağlanacak */}
+        <section className="card">
+          <p className="card__title">Bekleyen Hakediş</p>
           <p className="card__placeholder">Veri yok</p>
         </section>
         <section className="card">
@@ -83,7 +127,7 @@ export default function DashboardPage() {
           <p className="card__placeholder">Veri yok</p>
         </section>
         <section className="card">
-          <p className="card__title">Soğuk Zincir Uyarıları</p>
+          <p className="card__title">Bugünkü Mal Geliş</p>
           <p className="card__placeholder">Veri yok</p>
         </section>
       </div>
