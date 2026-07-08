@@ -38,6 +38,12 @@ namespace HalOS.BuildingBlocks.Contracts;
 /// (Integration servisi Invoice akışı) kullanılır. Sales'in zaten hesapladığı
 /// (<c>SettlementCalculation.VatOnCommission</c>) tutardır; event'le taşınarak alıcıya kesilecek
 /// komisyon e-Faturasının KDV'si yeniden hesaplanmadan kurulur (docs/04 §10).</param>
+/// <param name="Lines">Satış satırları (ürün + miktar kırılımı). Inventory servisi
+/// (Stok &amp; Depo bağlamı — docs/02 §115) SaleCompleted'ı tüketip her satır için ilgili ürünün
+/// stoğundan çıkış hareketi (StockMovement) yazar (docs/02 §6 SaleCompleted → Stok; §229-230 event
+/// katalog). Stok çıkışı ürün + miktar gerektirdiğinden bu kırılım event'le taşınır; consumer
+/// tekil sorgu yapmadan (docs/07 §5) stok düşer. Finans (cari) ve Integration (e-Belge/HKS)
+/// consumer'ları bu alanı KULLANMAK ZORUNDA DEĞİLDİR — toplam/net tutarlarla çalışırlar.</param>
 public sealed record SaleCompleted(
     Guid SaleTransactionId,
     Guid TenantId,
@@ -53,4 +59,25 @@ public sealed record SaleCompleted(
     decimal TotalDeductions,
     decimal NetAmount,
     DateTime SettlementDueDate,
+    IReadOnlyList<SaleCompletedLine> Lines,
     DateTime OccurredOnUtc) : IDomainEvent, ITenantScopedEvent;
+
+/// <summary>
+/// <see cref="SaleCompleted"/> event'inin tek bir satış satırını taşıyan alt kaydı (docs/02 §1.4
+/// <c>SaleLine</c>; §6 SaleCompleted → Stok). Inventory servisi bu kırılımla ürün bazında stok
+/// çıkışı (StockMovement) yazar — stok/bakiye = Σ hareket değişmezini korur (docs/02 §115).
+///
+/// Ölçü birimi <see cref="UnitCode"/> STRING olarak taşınır: Contracts assembly'si
+/// <c>Sales.Domain</c>'e bağlanamaz (docs/07), bu yüzden <c>UnitOfMeasure</c> enum'ı event'te
+/// enum yerine metin (<c>enum.ToString()</c>) olarak geçer.
+/// </summary>
+/// <param name="SaleLineId">Kaynak satış satırının kimliği (<c>SaleLine.Id</c>); consumer tarafında
+/// stok hareketinin kaynak referansı/idempotency için kullanılabilir.</param>
+/// <param name="ProductId">Ürün referansı (Inventory servisi ID'si — servisler arası FK yok, docs/05 §5).</param>
+/// <param name="Quantity">Satılan miktar (NUMERIC(18,3); decimal — asla float, BK-2). Stok çıkış miktarıdır.</param>
+/// <param name="UnitCode">Ölçü birimi kodu (<c>UnitOfMeasure.ToString()</c>) — enum değil metin (docs/07).</param>
+public sealed record SaleCompletedLine(
+    Guid SaleLineId,
+    Guid ProductId,
+    decimal Quantity,
+    string UnitCode);

@@ -261,6 +261,14 @@ public sealed class SaleTransaction : AggregateRoot<Guid>, ITenantOwned
             calculation.TotalDeductions,
             calculation.Net,
             dueDate,
+            // Stok çıkışı için satır kırılımı (docs/02 §6 SaleCompleted → Stok): Inventory servisi
+            // her satır için ürün bazında stok hareketi yazar. Birim STRING taşınır (enum.ToString()) —
+            // Contracts assembly'si Sales.Domain'e bağlanamaz (docs/07).
+            _lines.Select(l => new SaleCompletedLine(
+                l.Id,
+                l.ProductId,
+                l.Quantity,
+                l.Unit.ToString())).ToList(),
             DateTime.UtcNow));
 
         return Result.Success();

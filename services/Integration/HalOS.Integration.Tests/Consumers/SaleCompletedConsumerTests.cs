@@ -107,6 +107,9 @@ public sealed class SaleCompletedConsumerTests
             TotalDeductions: 12.00m,
             NetAmount: 88.00m,
             SettlementDueDate: new DateTime(2026, 7, 28),
+            // Tek kalem: 100 kg × 1,00 TL = 100,00 brüt (tutarlı örnek). Integration consumer'ı
+            // Lines'ı kullanmaz; yalnız derlensin diye doldurulur.
+            Lines: new[] { new SaleCompletedLine(Guid.NewGuid(), Guid.NewGuid(), 100.000m, "Kilogram") },
             OccurredOnUtc: DateTime.UtcNow);
 
     private static void SeedProfile(IntegrationDbContext ctx, Guid tenantId, Guid producerId, bool keepsRecords)

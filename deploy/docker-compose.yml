@@ -241,6 +241,40 @@ services:
     networks:
       - halos
 
+  # Inventory (Stok & Depo) — S1.7 / M9 (docs/03; docs/02 §115).
+  #   docker compose --profile apps up -d inventory
+  # Inventory, ConsignmentReceived + SaleCompleted'i RabbitMQ'dan tüketir (ADR-006): her mal geliş
+  # kalemi için stok GİRİŞİ, her satış satırı için stok ÇIKIŞI yazar (stok = Σ hareket). Fire
+  # (SpoilageRecorded) el-yapımı outbox üzerinden yayınlanır. halos_inventory DB'sine yazar.
+  inventory:
+    profiles: ["apps"]
+    build:
+      context: ..
+      dockerfile: services/Inventory/HalOS.Inventory.Api/Dockerfile
+    container_name: halos-inventory
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      # InventoryDb: servis kendi DB'sine (halos_inventory) bağlanır (ADR-006).
+      ConnectionStrings__InventoryDb: "Host=postgres;Port=5432;Database=halos_inventory;Username=${POSTGRES_USER:-halos};Password=${POSTGRES_PASSWORD:-halos_dev_pw}"
+      # Event bus (ADR-006): ConsignmentReceived + SaleCompleted tüketimi + SpoilageRecorded yayını.
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: "/"
+      RabbitMq__Username: ${RABBITMQ_USER:-halos}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:-halos_dev_pw}
+      # JWT imza anahtarı üretimde Vault/ortam değişkeninden gelir (docs/04 §7).
+      Jwt__SigningKey: ${INVENTORY_JWT_SIGNING_KEY:-dev-only-signing-key-change-me-please-0123456789abcdef}
+    ports:
+      - "${INVENTORY_PORT:-5085}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - halos
+
 volumes:
   postgres-data:
   redis-data:

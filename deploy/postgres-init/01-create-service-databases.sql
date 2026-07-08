@@ -23,3 +23,6 @@ SELECT 'CREATE DATABASE halos_finance OWNER halos'
 
 SELECT 'CREATE DATABASE halos_integration OWNER halos'
     WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'halos_integration')\gexec
+
+SELECT 'CREATE DATABASE halos_inventory OWNER halos'
+    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'halos_inventory')\gexec
