@@ -33,11 +33,16 @@ public abstract class TenantDbContextBase : DbContext
 
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
+    /// <summary>Değiştirilemez (append-only) denetim kayıtları (docs/05 §3.11).</summary>
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
         ConfigureOutbox(modelBuilder);
+
+        ConfigureAuditLog(modelBuilder);
 
         // Apply a tenant global query filter to every ITenantOwned entity type.
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
@@ -73,6 +78,32 @@ public abstract class TenantDbContextBase : DbContext
             builder.Property(m => m.Error).HasColumnName("error");
             // İşlenmemiş mesajları oluşma sırasına göre tarayan dispatch sorgusu için indeks.
             builder.HasIndex(m => m.ProcessedOnUtc).HasDatabaseName("ix_outbox_message_processed_on_utc");
+        });
+    }
+
+    private static void ConfigureAuditLog(ModelBuilder modelBuilder)
+    {
+        // Denetim tablosu/kolonları snake_case (docs/05 §3.11); tüm servislerin DB'sinde aynı
+        // paylaşılan audit_log şeması yaşar. Append-only (değiştirilemez, docs/04 §201) — yalnız
+        // ekleme yapılır; uygulama katmanı güncelleme/silme üretmez (outbox deseniyle birebir).
+        modelBuilder.Entity<AuditLog>(builder =>
+        {
+            builder.ToTable("audit_log");
+            builder.HasKey(a => a.Id);
+            builder.Property(a => a.Id).HasColumnName("id");
+            builder.Property(a => a.TenantId).HasColumnName("tenant_id");
+            builder.Property(a => a.UserId).HasColumnName("user_id");
+            builder.Property(a => a.Action).HasColumnName("action").IsRequired();
+            builder.Property(a => a.EntityType).HasColumnName("entity_type");
+            builder.Property(a => a.EntityId).HasColumnName("entity_id");
+            // before/after JSON yükleri docs/05 §3.11'e göre JSONB (withholding_profile/limits/
+            // context/payload/request/response ile aynı konvansiyon); EF varsayılan text DEĞİL.
+            builder.Property(a => a.BeforeJson).HasColumnName("before_json").HasColumnType("jsonb");
+            builder.Property(a => a.AfterJson).HasColumnName("after_json").HasColumnType("jsonb");
+            builder.Property(a => a.CreatedOnUtc).HasColumnName("created_on_utc");
+            // Tenant bazlı kronolojik denetim sorguları için indeks (docs/05 §6 tenant_id her sorguda).
+            builder.HasIndex(a => new { a.TenantId, a.CreatedOnUtc })
+                .HasDatabaseName("ix_audit_log_tenant_id_created_on_utc");
         });
     }
 

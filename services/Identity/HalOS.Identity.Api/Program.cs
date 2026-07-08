@@ -27,6 +27,9 @@ builder.Services.AddIdentityInfrastructure(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantContext, HttpTenantContext>();
 builder.Services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
+// Denetim (audit_log) "kim" bilgisi: mevcut kullanıcı bağlamını saran paylaşılan IAuditActor
+// adaptörü (mevcut ICurrentUserContext TAŞINMAZ/DEĞİŞTİRİLMEZ) (docs/05 §3.11).
+builder.Services.AddScoped<IAuditActor, CurrentUserAuditActor>();
 
 // --- Kimlik doğrulama: JWT Bearer (docs/04 ADR-009) ---
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);

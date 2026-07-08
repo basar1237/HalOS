@@ -33,6 +33,9 @@ builder.Services.AddScoped<ITenantContext>(sp =>
     new CompositeTenantContext(
         sp.GetRequiredService<HttpTenantContext>(),
         sp.GetRequiredService<AmbientTenantContext>()));
+// Denetim (audit_log) "kim" bilgisi: Party'de ayrı ICurrentUserContext yok; IAuditActor
+// kullanıcıyı doğrudan JWT sub claim'inden okur (docs/05 §3.11).
+builder.Services.AddScoped<IAuditActor, HttpAuditActor>();
 
 // Mesajlaşma (docs/04 ADR-006 / §10): Party yalnız YAYINCI + dispatcher rolündedir — müstahsil
 // oran profili değişince ProducerWithholdingProfileChanged outbox'tan RabbitMQ'ya yayınlanır.

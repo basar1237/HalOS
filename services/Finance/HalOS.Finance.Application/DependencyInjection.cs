@@ -25,6 +25,9 @@ public static class DependencyInjection
             cfg.RegisterServicesFromAssembly(assembly);
             // Validasyon pipeline'ı handler'dan önce çalışır (docs/07 §5).
             cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+            // Denetim (audit_log): her komut için kim/ne/ne zaman yazılır (docs/05 §3.11).
+            // Validasyondan SONRA; yalnız komutları denetler, query'leri denetlemez.
+            cfg.AddOpenBehavior(typeof(AuditLoggingBehavior<,>));
         });
 
         services.AddValidatorsFromAssembly(assembly, includeInternalTypes: true);

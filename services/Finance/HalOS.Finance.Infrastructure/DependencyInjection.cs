@@ -1,3 +1,5 @@
+using HalOS.BuildingBlocks.Application;
+using HalOS.BuildingBlocks.Infrastructure;
 using HalOS.Finance.Application.Abstractions;
 using HalOS.Finance.Infrastructure.Persistence;
 using HalOS.Finance.Infrastructure.Persistence.Repositories;
@@ -27,6 +29,10 @@ public static class DependencyInjection
         // Domain event'leri outbox'a FinanceDbContext.SaveChangesAsync içinde tenant'lı yazılır
         // (docs/04 §10); ayrı bir IOutboxWriter yolu yok — Sales/Party ile aynı desen.
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<FinanceDbContext>());
+
+        // Denetim kaydı (audit_log) sink'i: komut sonrası kim/ne/ne zaman'ı FinanceDbContext'e yazar
+        // (docs/05 §3.11). AuditLoggingBehavior bunu kullanır; outbox deseniyle paralel.
+        services.AddScoped<IAuditLogSink, AuditLogSink<FinanceDbContext>>();
 
         services.AddScoped<ICurrentAccountRepository, CurrentAccountRepository>();
 

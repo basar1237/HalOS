@@ -1,3 +1,5 @@
+using HalOS.BuildingBlocks.Application;
+using HalOS.BuildingBlocks.Infrastructure;
 using HalOS.Party.Application.Abstractions;
 using HalOS.Party.Infrastructure.Persistence;
 using HalOS.Party.Infrastructure.Persistence.Repositories;
@@ -27,6 +29,10 @@ public static class DependencyInjection
         // Domain event'leri outbox'a PartyDbContext.SaveChangesAsync içinde tenant'lı yazılır
         // (docs/04 §10); ayrı bir IOutboxWriter yolu yok — Identity servisiyle aynı desen.
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<PartyDbContext>());
+
+        // Denetim kaydı (audit_log) sink'i: komut sonrası kim/ne/ne zaman'ı PartyDbContext'e yazar
+        // (docs/05 §3.11). AuditLoggingBehavior bunu kullanır; outbox deseniyle paralel.
+        services.AddScoped<IAuditLogSink, AuditLogSink<PartyDbContext>>();
 
         services.AddScoped<IPartyRepository, PartyRepository>();
 

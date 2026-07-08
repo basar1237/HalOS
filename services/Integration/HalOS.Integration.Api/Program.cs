@@ -37,6 +37,9 @@ builder.Services.AddScoped<ITenantContext>(sp =>
         sp.GetRequiredService<HttpTenantContext>(),
         sp.GetRequiredService<AmbientTenantContext>()));
 builder.Services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
+// Denetim (audit_log) "kim" bilgisi: mevcut kullanıcı bağlamını saran paylaşılan IAuditActor
+// adaptörü (mevcut ICurrentUserContext TAŞINMAZ/DEĞİŞTİRİLMEZ) (docs/05 §3.11).
+builder.Services.AddScoped<IAuditActor, CurrentUserAuditActor>();
 
 // Mesajlaşma (docs/04 ADR-006/ADR-007 / §10): Integration TÜKETİCİdir + kendi event'lerini
 // (ProducerReceiptIssued) el-yapımı outbox üzerinden yayınlar (dispatcher). SaleCompletedConsumer,
