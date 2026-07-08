@@ -1,3 +1,4 @@
+using System.Globalization;
 using HalOS.Finance.Api.Authorization;
 using HalOS.Finance.Application.Features.Reports.CurrentAccountAgingReport;
 using MediatR;
@@ -37,5 +38,40 @@ public sealed class ReportsController : ControllerBase
         var result = await _sender.Send(
             new CurrentAccountAgingReportQuery(asOf ?? DateTime.UtcNow), cancellationToken);
         return result.ToActionResult(this);
+    }
+
+    /// <summary>
+    /// Cari yaşlandırma raporunu CSV olarak dışa aktarır (docs/06 S2.2 "dışa aktarma"). Aynı query
+    /// çalışır; her yaşlandırma kovası bir satır (kova / tutar / cari sayısı) + toplam satırı. RFC 4180
+    /// kaçışlı; tarih/sayı InvariantCulture. <paramref name="asOf"/> verilmezse şu anki UTC zamanı.
+    /// </summary>
+    [HttpGet("aging.csv")]
+    public async Task<IActionResult> AgingCsv(
+        [FromQuery] DateTime? asOf,
+        CancellationToken cancellationToken)
+    {
+        var asOfUtc = asOf ?? DateTime.UtcNow;
+        var result = await _sender.Send(
+            new CurrentAccountAgingReportQuery(asOfUtc), cancellationToken);
+        if (result.IsFailure)
+        {
+            return result.ToActionResult(this);
+        }
+
+        var dto = result.Value;
+        var rows = new List<IReadOnlyList<string>>
+        {
+            new[] { "Guncel", CsvWriter.Money(dto.Current.Amount), CsvWriter.Number(dto.Current.AccountCount) },
+            new[] { "0-15 gun", CsvWriter.Money(dto.Days0To15.Amount), CsvWriter.Number(dto.Days0To15.AccountCount) },
+            new[] { "16-30 gun", CsvWriter.Money(dto.Days16To30.Amount), CsvWriter.Number(dto.Days16To30.AccountCount) },
+            new[] { "31+ gun", CsvWriter.Money(dto.Days31Plus.Amount), CsvWriter.Number(dto.Days31Plus.AccountCount) },
+            new[] { "TOPLAM", CsvWriter.Money(dto.TotalAmount), CsvWriter.Number(dto.TotalAccountCount) }
+        };
+
+        var bytes = CsvWriter.WriteBytes(
+            new[] { "kova", "tutar", "cari_sayisi" }, rows);
+
+        var stamp = asOfUtc.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+        return File(bytes, "text/csv", $"cari-yaslandirma-{stamp}.csv");
     }
 }

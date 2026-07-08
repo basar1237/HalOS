@@ -61,4 +61,16 @@ public interface ISaleTransactionRepository
     Task<DailySummaryReportDto> GetDailySummaryAsync(
         DateTime day,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Satış trend raporu (docs/06 S2.2). Verilen [from, to] aralığındaki (SoldAt) TAMAMLANMIŞ
+    /// (Completed) satışları <paramref name="granularity"/> seviyesine (Gün/Hafta/Ay) göre zaman
+    /// kovalarına gruplar; her kova için adet/brüt/komisyon/net toplamı (PeriodStart artan sıralı).
+    /// AsNoTracking, tenant filtreli (BK-8). Yeni tablo YOK — mevcut veriden agregasyon.
+    /// </summary>
+    Task<SalesTrendReportDto> GetSalesTrendAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        TrendGranularity granularity,
+        CancellationToken cancellationToken = default);
 }

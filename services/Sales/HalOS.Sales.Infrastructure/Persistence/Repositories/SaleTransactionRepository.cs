@@ -163,6 +163,55 @@ internal sealed class SaleTransactionRepository : ISaleTransactionRepository
         return new DailySummaryReportDto(start, count, gross, commission, net);
     }
 
+    public async Task<SalesTrendReportDto> GetSalesTrendAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        TrendGranularity granularity,
+        CancellationToken cancellationToken = default)
+    {
+        // Tamamlanmış satışların yalnız kovalama için gereken alanlarını server-side (tenant filtreli,
+        // AsNoTracking) projekte edip çekeriz; kova başlangıcı hesabı (ISO hafta başı / ay başı) SQL'e
+        // çevrilemeyeceğinden ve sağlayıcı-bağımsız (InMemory + Postgres) kalması için gruplama
+        // BELLEKTE yapılır. Rapor okuması küçük hacimli/tarih-aralığı sınırlıdır (docs/06 S2.2).
+        var rows = await CompletedInRange(fromUtc, toUtc)
+            .Select(s => new
+            {
+                s.SoldAt,
+                Gross = s.GrossAmount,
+                Commission = s.CommissionCalculation != null ? s.CommissionCalculation.CommissionAmount : 0m,
+                Net = s.Settlement != null ? s.Settlement.NetAmount : 0m
+            })
+            .ToListAsync(cancellationToken);
+
+        var buckets = rows
+            .GroupBy(r => BucketStart(r.SoldAt, granularity))
+            .Select(g => new SalesTrendBucketDto(
+                g.Key,
+                g.LongCount(),
+                g.Sum(r => r.Gross),
+                g.Sum(r => r.Commission),
+                g.Sum(r => r.Net)))
+            .OrderBy(b => b.PeriodStart)
+            .ToList();
+
+        return new SalesTrendReportDto(granularity, buckets);
+    }
+
+    /// <summary>
+    /// Bir satış tarihini (UTC) kova başlangıcına indirger: Gün → gün başı; Hafta → ISO-8601 hafta
+    /// başı (Pazartesi 00:00); Ay → ayın ilk günü 00:00. Kültür-bağımsız (haftanın günü ISO'ya göre).
+    /// </summary>
+    private static DateTime BucketStart(DateTime soldAt, TrendGranularity granularity)
+    {
+        var day = soldAt.Date;
+        return granularity switch
+        {
+            TrendGranularity.Week => day.AddDays(-(((int)day.DayOfWeek + 6) % 7)),
+            TrendGranularity.Month => new DateTime(day.Year, day.Month, 1, 0, 0, 0, day.Kind),
+            _ => day
+        };
+    }
+
     /// <summary>
     /// Rapor okumaları için ortak temel: tamamlanmış (Completed) satışlar. Aralık üst sınırı gün
     /// bazında DAHİL'dir (query XML doc "ToUtc (dahil)"): <paramref name="toUtc"/> gün başına
