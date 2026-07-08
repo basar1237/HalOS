@@ -30,4 +30,14 @@ public interface ICurrentAccountRepository
     void Add(CurrentAccount account);
 
     void Update(CurrentAccount account);
+
+    /// <summary>
+    /// Cari yaşlandırma raporu (docs/03 M10 "cari yaşlandırma (okuma)"). Tenant'ın müstahsil hakediş
+    /// (<see cref="Domain.Enums.EntryType.Settlement"/>) vadelerini <paramref name="asOfUtc"/>'ye göre
+    /// gecikme yaşına göre kovalara böler; her kova için Σ tutar + benzersiz cari sayısı döner.
+    /// AsNoTracking agregasyon; tenant global filter otomatik (BK-8). Yeni tablo YOK.
+    /// </summary>
+    Task<CurrentAccountAgingReportDto> GetCurrentAccountAgingAsync(
+        DateTime asOfUtc,
+        CancellationToken cancellationToken = default);
 }

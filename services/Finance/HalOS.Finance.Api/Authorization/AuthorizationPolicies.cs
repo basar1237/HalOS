@@ -20,6 +20,7 @@ public static class AuthorizationPolicies
     public const string PaymentWrite = "PaymentWrite";
     public const string CollectionWrite = "CollectionWrite";
     public const string AdvanceWrite = "AdvanceWrite";
+    public const string FinanceReportRead = "FinanceReportRead";
 
     // Identity.SystemRole kod adlarıyla birebir (servisler arası ortak sözleşme).
     private const string Owner = "Owner";
@@ -40,5 +41,9 @@ public static class AuthorizationPolicies
 
         // Avans (mali işlem): Patron/Yönetici/Muhasebe (docs/03 §3.1 ödeme yetkisiyle aynı çerçeve).
         options.AddPolicy(AdvanceWrite, p => p.RequireRole(Owner, Manager, Accountant));
+
+        // Finans raporları (cari yaşlandırma vb.): Patron/Yönetici/Muhasebe (docs/03 §3.1 "Raporlar:
+        // Patron, Muhasebe" + Yönetici; Sales SalesReportRead ile aynı çerçeve).
+        options.AddPolicy(FinanceReportRead, p => p.RequireRole(Owner, Manager, Accountant));
     }
 }

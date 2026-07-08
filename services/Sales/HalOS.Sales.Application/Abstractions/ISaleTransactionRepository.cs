@@ -32,4 +32,33 @@ public interface ISaleTransactionRepository
     void Add(SaleTransaction sale);
 
     void Update(SaleTransaction sale);
+
+    /// <summary>
+    /// Satış özet raporu (docs/03 M10 "raporlar (okuma)"). Verilen [from, to] aralığındaki (SoldAt)
+    /// TAMAMLANMIŞ (Completed) satışların adet/brüt/komisyon/kesinti(KDV hariç)/net toplamları.
+    /// AsNoTracking, tenant filtreli (BK-8). Yeni tablo YOK — mevcut veriden agregasyon.
+    /// </summary>
+    Task<SalesSummaryReportDto> GetSalesSummaryAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Komisyon geliri raporu (docs/03 M10). Aralıktaki tamamlanmış satışlar için Σ komisyon +
+    /// Σ komisyon KDV'si; <paramref name="includeDailyBreakdown"/> ise SoldAt gününe göre kırılım.
+    /// AsNoTracking, tenant filtreli (BK-8).
+    /// </summary>
+    Task<CommissionIncomeReportDto> GetCommissionIncomeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        bool includeDailyBreakdown,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gün sonu özet raporu (docs/03 M10). Verilen günün (SoldAt tarihi) tamamlanmış satış
+    /// toplamları (adet/brüt/komisyon/net). AsNoTracking, tenant filtreli (BK-8).
+    /// </summary>
+    Task<DailySummaryReportDto> GetDailySummaryAsync(
+        DateTime day,
+        CancellationToken cancellationToken = default);
 }

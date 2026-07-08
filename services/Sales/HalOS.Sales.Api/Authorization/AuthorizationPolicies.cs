@@ -23,6 +23,9 @@ public static class AuthorizationPolicies
     public const string ConsignmentWrite = "ConsignmentWrite";
     public const string SaleRead = "SaleRead";
 
+    /// <summary>Satış raporları okuma (docs/03 M10): Patron/Yönetici/Muhasebe.</summary>
+    public const string SalesReportRead = "SalesReportRead";
+
     // Identity.SystemRole kod adlarıyla birebir (servisler arası ortak sözleşme).
     private const string Owner = "Owner";
     private const string Manager = "Manager";
@@ -46,5 +49,8 @@ public static class AuthorizationPolicies
 
         // Okuma: Patron/Yönetici/Muhasebe/Kasiyer.
         options.AddPolicy(SaleRead, p => p.RequireRole(Owner, Manager, Accountant, Cashier));
+
+        // Satış raporları okuma (docs/03 M10): Patron/Yönetici/Muhasebe (finansal özet — Kasiyer hariç).
+        options.AddPolicy(SalesReportRead, p => p.RequireRole(Owner, Manager, Accountant));
     }
 }
