@@ -1,8 +1,8 @@
 'use client';
 
-// Auth akışı iskeleti — ADR-009 (JWT + refresh + 2FA, merkezi Identity servisi).
-// Bu faz: token saklama yeri + oturum durumu + login/logout stub'ları.
-// Gerçek Identity servisi çağrıları ileriki fazda bağlanacak (docs/06).
+// Auth akışı — ADR-009 (JWT + refresh + 2FA, merkezi Identity servisi).
+// Gerçek Identity uçlarına bağlı: POST /auth/login (token çifti + kullanıcı özeti) ve
+// GET /me (oturum kurtarma → tam kullanıcı). Token'lar token-storage'da tutulur.
 
 import {
   createContext,
@@ -14,11 +14,19 @@ import {
   type ReactNode,
 } from 'react';
 
+import { apiClient } from '@/lib/api-client';
 import { clearTokens, getAccessToken, saveTokens } from '@/lib/token-storage';
-import type { AuthTokens, LoginCredentials, User } from '@/shared/types';
+import type {
+  AuthenticationResult,
+  CurrentUserDto,
+  LoginCredentials,
+  User,
+} from '@/shared/types';
 
 interface AuthContextValue {
   user: User | null;
+  /** Aktif tenant (JWT claim kaynağı; /me ve login yanıtından çözülür, BK-8). */
+  tenantId: string | null;
   isAuthenticated: boolean;
   /** Sayfa yüklenirken token kontrolü tamamlanana kadar true. */
   isLoading: boolean;
@@ -28,57 +36,100 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+/** CurrentUserDto → UI User modeli (rol tekli string → roller dizisi). */
+function toUser(dto: CurrentUserDto): User {
+  return {
+    id: dto.id,
+    fullName: dto.fullName,
+    email: dto.email,
+    roles: dto.role ? [dto.role] : [],
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // İlk yüklemede mevcut token'ı kontrol et (oturum kurtarma iskeleti).
+  // İlk yüklemede token varsa /me ile kullanıcıyı çöz (oturum kurtarma). Token geçersiz/
+  // süresi dolmuşsa (401) sessizce temizle → login akışına düş.
   useEffect(() => {
-    const token = getAccessToken();
-    if (token) {
-      // TODO(faz): Identity servisinden /me çağrısı ile kullanıcı çözülecek.
-      // Şimdilik yalnızca token varlığından oturumu türetiyoruz (stub).
-      setUser({
-        id: 'stub',
-        fullName: 'Oturum Kullanıcısı',
-        email: '',
-        roles: [],
-      });
+    let cancelled = false;
+
+    async function restore() {
+      const token = getAccessToken();
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+      try {
+        const me = await apiClient.get<CurrentUserDto>('/me');
+        if (!cancelled) {
+          setUser(toUser(me));
+          setTenantId(me.tenantId);
+        }
+      } catch {
+        if (!cancelled) {
+          clearTokens();
+          setUser(null);
+          setTenantId(null);
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
     }
-    setIsLoading(false);
+
+    void restore();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = useCallback(async (credentials: LoginCredentials) => {
-    // TODO(faz): apiClient.post('/auth/login', credentials) ile Identity servisine bağlan.
-    // İskelet: gelen token'ları sakla, kullanıcıyı ata.
-    void credentials;
-    const tokens: AuthTokens = {
-      accessToken: 'stub-access-token',
-      refreshToken: 'stub-refresh-token',
-    };
-    saveTokens(tokens);
-    setUser({
-      id: 'stub',
-      fullName: 'Oturum Kullanıcısı',
-      email: credentials.email,
-      roles: [],
+    // Identity kimlik doğrular, token çifti + kullanıcı özeti döner (AuthenticationResult).
+    const result = await apiClient.post<AuthenticationResult>(
+      '/auth/login',
+      credentials,
+    );
+
+    saveTokens({
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
     });
+    setTenantId(result.tenantId);
+
+    // Görünen ad login yanıtında yok → /me ile tam kullanıcıyı çöz. /me başarısız olsa bile
+    // giriş geçerli; login yanıtındaki özetle asgari kullanıcıyı kur.
+    try {
+      const me = await apiClient.get<CurrentUserDto>('/me');
+      setUser(toUser(me));
+      setTenantId(me.tenantId);
+    } catch {
+      setUser({
+        id: result.userId,
+        fullName: result.email,
+        email: result.email,
+        roles: result.role ? [result.role] : [],
+      });
+    }
   }, []);
 
   const logout = useCallback(() => {
     clearTokens();
     setUser(null);
+    setTenantId(null);
   }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
+      tenantId,
       isAuthenticated: user !== null,
       isLoading,
       login,
       logout,
     }),
-    [user, isLoading, login, logout],
+    [user, tenantId, isLoading, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

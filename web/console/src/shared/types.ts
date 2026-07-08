@@ -24,8 +24,35 @@ export interface AuthTokens {
   refreshToken: string;
 }
 
-/** Login formu girdisi. */
+/** Login formu girdisi. 2FA etkinse twoFactorCode zorunlu (Identity döner). */
 export interface LoginCredentials {
   email: string;
   password: string;
+  twoFactorCode?: string;
+}
+
+/**
+ * Identity /auth/login yanıtı — backend AuthenticationResult ile birebir (camelCase JSON).
+ */
+export interface AuthenticationResult {
+  accessToken: string;
+  accessTokenExpiresOnUtc: string;
+  refreshToken: string;
+  refreshTokenExpiresOnUtc: string;
+  userId: string;
+  tenantId: string;
+  email: string;
+  role: string;
+}
+
+/**
+ * Identity /me yanıtı — backend CurrentUserDto ile birebir. Oturum kurtarmada kullanıcıyı çözer.
+ */
+export interface CurrentUserDto {
+  id: string;
+  tenantId: string;
+  email: string;
+  fullName: string;
+  role: string;
+  twoFactorEnabled: boolean;
 }

@@ -8,7 +8,20 @@ const API_BASE_URL =
 
 export interface ApiError {
   status: number;
+  /** Kullanıcıya gösterilecek mesaj (ProblemDetails.detail veya statusText). */
   message: string;
+  /** Makine-okunur hata kodu (ProblemDetails.title, ör. "User.TwoFactorRequired"). */
+  code?: string;
+}
+
+/** Bir değerin ApiError olup olmadığını daraltır (catch bloklarında kullanışlı). */
+export function isApiError(value: unknown): value is ApiError {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'status' in value &&
+    'message' in value
+  );
 }
 
 interface RequestOptions extends Omit<RequestInit, 'body'> {
@@ -56,13 +69,20 @@ async function request<TResponse>(
 
   if (!response.ok) {
     let message = response.statusText;
+    let code: string | undefined;
     try {
-      const problem = (await response.json()) as { message?: string };
-      if (problem?.message) message = problem.message;
+      // Backend RFC7807 ProblemDetails döner: detail=mesaj, title=hata kodu (ApiResults.cs).
+      const problem = (await response.json()) as {
+        detail?: string;
+        title?: string;
+        message?: string;
+      };
+      message = problem?.detail ?? problem?.message ?? message;
+      code = problem?.title;
     } catch {
       // gövde JSON değilse statusText ile devam et
     }
-    const error: ApiError = { status: response.status, message };
+    const error: ApiError = { status: response.status, message, code };
     throw error;
   }
 

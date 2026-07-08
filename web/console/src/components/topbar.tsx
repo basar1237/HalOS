@@ -5,6 +5,12 @@
 import { useAuth } from '@/features/auth/auth-context';
 import { useTenant } from '@/features/tenant/tenant-context';
 
+/** Tenant görünen adı: ad varsa ad, yoksa kısa Id (isim okuma modeli sonraki fazda). */
+function tenantLabel(name: string, id: string): string {
+  if (name) return name;
+  return `İşletme #${id.slice(0, 8)}`;
+}
+
 export function Topbar() {
   const { user, logout } = useAuth();
   const { activeTenant } = useTenant();
@@ -12,7 +18,9 @@ export function Topbar() {
   return (
     <header className="topbar">
       <div className="topbar__tenant">
-        {activeTenant ? activeTenant.name : 'İşletme seçilmedi'}
+        {activeTenant
+          ? tenantLabel(activeTenant.name, activeTenant.id)
+          : 'İşletme seçilmedi'}
       </div>
       <div className="topbar__right">
         <span className="topbar__user">
