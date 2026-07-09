@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 
 import { usePartyOptions } from '@/features/parties/use-party-options';
+import { useProductOptions } from '@/features/products/use-product-options';
 import {
   createCompleteSale,
   SaleTerm,
@@ -35,6 +36,7 @@ function todayInput(): string {
 export default function NewSalePage() {
   const router = useRouter();
   const { options, loading: partiesLoading } = usePartyOptions();
+  const { options: products, loading: productsLoading } = useProductOptions();
 
   const [buyerPartyId, setBuyerPartyId] = useState('');
   const [producerPartyId, setProducerPartyId] = useState('');
@@ -191,7 +193,7 @@ export default function NewSalePage() {
           <table className="line-table">
             <thead>
               <tr>
-                <th>Ürün ID (GUID)</th>
+                <th>Ürün</th>
                 <th className="data-table__num">Miktar</th>
                 <th>Birim</th>
                 <th className="data-table__num">Birim Fiyat</th>
@@ -202,11 +204,29 @@ export default function NewSalePage() {
               {rows.map((r, i) => (
                 <tr key={i}>
                   <td>
-                    <input
+                    <select
                       value={r.productId}
-                      onChange={(e) => updateRow(i, { productId: e.target.value })}
-                      placeholder="ürün GUID"
-                    />
+                      disabled={productsLoading}
+                      onChange={(e) => {
+                        const opt = products.find((p) => p.id === e.target.value);
+                        // Ürün seçilince satır birimini ürünün varsayılan birimine ayarla.
+                        updateRow(
+                          i,
+                          opt
+                            ? { productId: opt.id, unit: opt.defaultUnit }
+                            : { productId: e.target.value },
+                        );
+                      }}
+                    >
+                      <option value="">
+                        {productsLoading ? 'Yükleniyor…' : 'Ürün seçin…'}
+                      </option>
+                      {products.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                   <td>
                     <input

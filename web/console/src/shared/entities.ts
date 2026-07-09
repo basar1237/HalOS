@@ -43,6 +43,15 @@ export interface StockItem {
   movementCount: number;
 }
 
+/** Inventory ProductDto — GET /api/inventory/products. defaultUnit int (UnitOfMeasure). */
+export interface Product {
+  id: string;
+  name: string;
+  category: string | null;
+  defaultUnit: number;
+  isActive: boolean;
+}
+
 /** Sales SaleDto (üst düzey alanlar; liste için) — GET /api/sales/sales. */
 export interface Sale {
   id: string;

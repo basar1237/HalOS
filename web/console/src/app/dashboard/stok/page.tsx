@@ -3,6 +3,7 @@
 // Stok & Depo — sayfalanmış stok listesi (GET /api/inventory/stock). Kalan miktar Σ hareket
 // ile türetilir (backend); eşik altı kalemler işaretlenir.
 
+import Link from 'next/link';
 import { useCallback } from 'react';
 
 import { PagedTable, type Column } from '@/components/paged-table';
@@ -42,7 +43,12 @@ export default function StockPage() {
 
   return (
     <div>
-      <h1 className="page-title">Stok & Depo</h1>
+      <div className="page-head">
+        <h1 className="page-title">Stok & Depo</h1>
+        <Link href="/dashboard/stok/urunler" className="btn-secondary btn-sm">
+          Ürün Kataloğu
+        </Link>
+      </div>
       <PagedTable
         state={state}
         columns={COLUMNS}
