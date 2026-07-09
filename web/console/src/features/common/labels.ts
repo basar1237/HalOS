@@ -28,6 +28,22 @@ export const INVOICE_TYPE_LABEL: Record<number, string> = {
   2: 'Satış',
 };
 
+/** Integration ProducerReceiptStatus (e-MM). */
+export const RECEIPT_STATUS_LABEL: Record<number, string> = {
+  1: 'Taslak',
+  2: 'Kesildi',
+  3: 'Başarısız',
+  4: 'İptal',
+};
+
+/** Integration HksNotificationStatus. */
+export const HKS_STATUS_LABEL: Record<number, string> = {
+  1: 'Taslak',
+  2: 'Bildirildi',
+  3: 'Başarısız',
+  4: 'İptal',
+};
+
 /** Bilinmeyen enum değeri için güvenli etiket. */
 export function label(map: Record<number, string>, value: number): string {
   return map[value] ?? `#${value}`;

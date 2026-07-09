@@ -79,3 +79,29 @@ export interface Invoice {
   invoiceNumber: string | null;
   status: number;
 }
+
+/** Integration ProducerReceiptDto (e-MM) — GET /api/integration/producer-receipts. */
+export interface ProducerReceipt {
+  id: string;
+  producerPartyId: string;
+  issueDate: string;
+  grossAmount: number;
+  agriWithholdingAmount: number;
+  farmerSskAmount: number;
+  netPayable: number;
+  receiptNumber: string | null;
+  status: number;
+}
+
+/** Integration HksNotificationDto — GET /api/integration/hks-notifications. */
+export interface HksNotification {
+  id: string;
+  producerPartyId: string;
+  buyerPartyId: string;
+  notifiedDate: string;
+  grossAmount: number;
+  commissionAmount: number;
+  marketFeeAmount: number;
+  referenceNumber: string | null;
+  status: number;
+}
