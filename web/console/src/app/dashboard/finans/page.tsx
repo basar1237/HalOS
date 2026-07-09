@@ -3,6 +3,7 @@
 // Cari & Finans — sayfalanmış cari hesap listesi (GET /api/finance/current-accounts).
 // Bakiye Σ hareket ile türetilir (backend); pozitif=alacak, negatif=borç gösterimi.
 
+import Link from 'next/link';
 import { useCallback } from 'react';
 
 import { PagedTable, type Column } from '@/components/paged-table';
@@ -31,7 +32,29 @@ export default function FinancePage() {
 
   return (
     <div>
-      <h1 className="page-title">Cari & Finans</h1>
+      <div className="page-head">
+        <h1 className="page-title">Cari & Finans</h1>
+        <div className="btn-group">
+          <Link
+            href="/dashboard/finans/hareket?tur=payment"
+            className="btn-secondary btn-sm"
+          >
+            Ödeme
+          </Link>
+          <Link
+            href="/dashboard/finans/hareket?tur=collection"
+            className="btn-secondary btn-sm"
+          >
+            Tahsilat
+          </Link>
+          <Link
+            href="/dashboard/finans/hareket?tur=advance"
+            className="btn-secondary btn-sm"
+          >
+            Avans
+          </Link>
+        </div>
+      </div>
       <PagedTable
         state={state}
         columns={COLUMNS}
