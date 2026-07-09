@@ -45,9 +45,14 @@ export default function StockPage() {
     <div>
       <div className="page-head">
         <h1 className="page-title">Stok & Depo</h1>
-        <Link href="/dashboard/stok/urunler" className="btn-secondary btn-sm">
-          Ürün Kataloğu
-        </Link>
+        <div className="btn-group">
+          <Link href="/dashboard/stok/fire" className="btn-secondary btn-sm">
+            Fire Kaydet
+          </Link>
+          <Link href="/dashboard/stok/urunler" className="btn-secondary btn-sm">
+            Ürün Kataloğu
+          </Link>
+        </div>
       </div>
       <PagedTable
         state={state}
