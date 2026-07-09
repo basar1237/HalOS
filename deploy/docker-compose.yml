@@ -408,6 +408,27 @@ services:
     networks:
       - halos
 
+  # ---------------------------------------------------------------------------
+  # Web Konsol (Next.js 14, ADR-003) — yönetim arayüzü. Tarayıcı yalnız API Gateway'e
+  # (host localhost:5000) konuşur; bu konteyner statik/SSR sayfaları sunar. Standalone imaj.
+  #   docker compose --profile apps up -d --build console
+  # ---------------------------------------------------------------------------
+  console:
+    profiles: ["apps"]
+    build:
+      context: ../web/console
+      dockerfile: Dockerfile
+    container_name: halos-console
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    ports:
+      - "${CONSOLE_PORT:-3000}:3000"
+    depends_on:
+      - gateway
+    networks:
+      - halos
+
 volumes:
   postgres-data:
   redis-data:

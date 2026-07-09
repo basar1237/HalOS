@@ -42,7 +42,7 @@ jobs:
         run: dotnet build HalOS.sln --configuration Release --no-restore
 
       # --no-build keeps the tested binaries identical to the build step.
-      # No test projects yet returns exit 0; the step stays green until tests land.
+      # 329 tests across 9 services (Postgres-integration tests skip without HALOS_TEST_POSTGRES).
       - name: Test
         run: dotnet test HalOS.sln --configuration Release --no-build --verbosity normal
 
@@ -86,5 +86,33 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Test
+        run: npm test
+
       - name: Build
         run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # Job 3 — AI Gateway (Python/FastAPI, ADR-002): install + pytest.
+  # Anahtarsız stub LLM ile çalışır (ANTHROPIC_API_KEY gerekmez).
+  # ---------------------------------------------------------------------------
+  ai-gateway:
+    name: AI Gateway (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-gateway
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Test
+        run: pytest
