@@ -41,6 +41,14 @@ const COLUMNS: Column<Sale>[] = [
       </span>
     ),
   },
+  {
+    header: '',
+    cell: (s) => (
+      <Link href={`/dashboard/satis/${s.id}`} className="row-link">
+        Detay
+      </Link>
+    ),
+  },
 ];
 
 export default function SalesPage() {

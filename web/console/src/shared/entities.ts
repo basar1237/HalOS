@@ -64,6 +64,52 @@ export interface Sale {
   isCancelled: boolean;
 }
 
+/** Sales SaleDto tam detayı — GET /api/sales/sales/{id} (satırlar + komisyon + kesinti + hakediş). */
+export interface SaleLine {
+  id: string;
+  productId: string;
+  quantity: number;
+  unit: number;
+  unitPrice: number;
+  lineAmount: number;
+}
+
+export interface CommissionCalculation {
+  commissionRate: number;
+  commissionAmount: number;
+  vatRate: number;
+  vatAmount: number;
+}
+
+export interface Deduction {
+  type: number;
+  rate: number;
+  amount: number;
+}
+
+export interface Settlement {
+  netAmount: number;
+  dueDate: string;
+  status: number;
+}
+
+export interface SaleDetail {
+  id: string;
+  buyerPartyId: string;
+  producerPartyId: string;
+  consignmentId: string | null;
+  soldAt: string;
+  grossAmount: number;
+  isWithinMarket: boolean;
+  status: number;
+  isCancelled: boolean;
+  cancellationReason: string | null;
+  lines: SaleLine[];
+  commissionCalculation: CommissionCalculation | null;
+  deductions: Deduction[];
+  settlement: Settlement | null;
+}
+
 /** Integration InvoiceDto — GET /api/integration/invoices. */
 export interface Invoice {
   id: string;

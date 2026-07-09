@@ -36,6 +36,22 @@ export const SALE_STATUS_LABEL: Record<number, string> = {
   3: 'İptal',
 };
 
+/** DeductionType (backend): 1-5. */
+export const DEDUCTION_TYPE_LABEL: Record<number, string> = {
+  1: 'Komisyon',
+  2: 'Zirai Stopaj',
+  3: 'Çiftçi Bağ-Kur',
+  4: 'Hal Rüsumu',
+  5: 'KDV',
+};
+
+/** SettlementStatus (backend): Pending=1, Scheduled=2, Paid=3. */
+export const SETTLEMENT_STATUS_LABEL: Record<number, string> = {
+  1: 'Beklemede',
+  2: 'Planlandı',
+  3: 'Ödendi',
+};
+
 export interface CreateSaleHeader {
   buyerPartyId: string;
   producerPartyId: string;
@@ -79,6 +95,16 @@ function completeSale(saleId: string): Promise<unknown> {
  * (offline idempotency, docs/04 §5). Herhangi bir adım hata verirse fırlatır (taslak backend'de
  * kalabilir; kullanıcı yeniden deneyebilir). Tamamlanan satışın kimliğini döndürür.
  */
+/** Tekil satış (lines/komisyon/kesinti/hakediş dahil) — GET /api/sales/sales/{id}. */
+export function getSale(id: string): Promise<import('@/shared/entities').SaleDetail> {
+  return apiClient.get(`/api/sales/sales/${id}`);
+}
+
+/** Satışı iptal eder (ters kayıt/flag; SİLİNMEZ — BK-9). POST /api/sales/sales/{id}/cancel. */
+export function cancelSale(id: string, reason: string): Promise<unknown> {
+  return apiClient.post(`/api/sales/sales/${id}/cancel`, { reason });
+}
+
 export interface ConsignmentItemInput {
   productId: string;
   quantity: number;
