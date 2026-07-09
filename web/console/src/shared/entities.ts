@@ -43,6 +43,18 @@ export interface StockItem {
   movementCount: number;
 }
 
+/** Sales SaleDto (üst düzey alanlar; liste için) — GET /api/sales/sales. */
+export interface Sale {
+  id: string;
+  buyerPartyId: string;
+  producerPartyId: string;
+  soldAt: string;
+  grossAmount: number;
+  isWithinMarket: boolean;
+  status: number;
+  isCancelled: boolean;
+}
+
 /** Integration InvoiceDto — GET /api/integration/invoices. */
 export interface Invoice {
   id: string;
