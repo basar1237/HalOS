@@ -79,6 +79,26 @@ function completeSale(saleId: string): Promise<unknown> {
  * (offline idempotency, docs/04 §5). Herhangi bir adım hata verirse fırlatır (taslak backend'de
  * kalabilir; kullanıcı yeniden deneyebilir). Tamamlanan satışın kimliğini döndürür.
  */
+export interface ConsignmentItemInput {
+  productId: string;
+  quantity: number;
+  unit: number;
+}
+
+export interface ReceiveConsignmentRequest {
+  producerPartyId: string;
+  receivedAt: string;
+  dispatchNoteRef: string | null;
+  items: ConsignmentItemInput[];
+}
+
+/** Müstahsilden mal geliş partisi kabul eder (docs/03 M3). POST /api/sales/consignments. */
+export function receiveConsignment(
+  request: ReceiveConsignmentRequest,
+): Promise<{ id: string }> {
+  return apiClient.post<{ id: string }>('/api/sales/consignments', request);
+}
+
 export async function createCompleteSale(
   header: CreateSaleHeader,
   lines: SaleLineInput[],

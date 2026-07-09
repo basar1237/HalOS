@@ -55,9 +55,17 @@ export default function SalesPage() {
     <div>
       <div className="page-head">
         <h1 className="page-title">Satış & Komisyon</h1>
-        <Link href="/dashboard/satis/yeni" className="btn-primary btn-inline">
-          Yeni Satış
-        </Link>
+        <div className="btn-group">
+          <Link
+            href="/dashboard/satis/mal-gelis"
+            className="btn-secondary btn-sm"
+          >
+            Yeni Mal Geliş
+          </Link>
+          <Link href="/dashboard/satis/yeni" className="btn-primary btn-inline">
+            Yeni Satış
+          </Link>
+        </div>
       </div>
       <PagedTable
         state={state}
