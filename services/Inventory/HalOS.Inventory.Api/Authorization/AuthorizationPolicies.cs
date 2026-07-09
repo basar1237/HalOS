@@ -19,6 +19,8 @@ public static class AuthorizationPolicies
     public const string SpoilageWrite = "SpoilageWrite";
     public const string WarehouseWrite = "WarehouseWrite";
     public const string StockThresholdWrite = "StockThresholdWrite";
+    public const string ProductRead = "ProductRead";
+    public const string ProductWrite = "ProductWrite";
 
     // Identity.SystemRole kod adlarıyla birebir (servisler arası ortak sözleşme).
     private const string Owner = "Owner";
@@ -38,5 +40,10 @@ public static class AuthorizationPolicies
 
         // Yeniden-sipariş eşiği ayarla: Yönetici/Depo (docs/06 S2.1).
         options.AddPolicy(StockThresholdWrite, p => p.RequireRole(Manager, Warehouse));
+
+        // Ürün kataloğu: okuma Patron/Yönetici/Depo (seçiciler + liste); yazma Patron/Yönetici
+        // (docs/03 §3 "Ürün & Birim | Yönetici | Katalog").
+        options.AddPolicy(ProductRead, p => p.RequireRole(Owner, Manager, Warehouse));
+        options.AddPolicy(ProductWrite, p => p.RequireRole(Owner, Manager));
     }
 }

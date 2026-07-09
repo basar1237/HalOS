@@ -24,3 +24,15 @@ public sealed record CreateWarehouseRequest(
 public sealed record SetReorderThresholdRequest(
     Guid ProductId,
     decimal? ReorderThreshold);
+
+/// <summary>Yeni ürün oluşturma isteği (docs/03 M2; docs/05 §3.3). Ad + kategori(ops.) + varsayılan birim.</summary>
+public sealed record CreateProductRequest(
+    string Name,
+    string? Category,
+    HalOS.Inventory.Domain.Enums.UnitOfMeasure DefaultUnit);
+
+/// <summary>Ürün güncelleme isteği (docs/03 M2).</summary>
+public sealed record UpdateProductRequest(
+    string Name,
+    string? Category,
+    HalOS.Inventory.Domain.Enums.UnitOfMeasure DefaultUnit);

@@ -41,6 +41,10 @@ public static class DependencyInjection
         services.AddScoped<IWarehouseRepository, WarehouseRepository>();
         services.AddScoped<IWarehouseProvider, WarehouseProvider>();
 
+        // Ürün kataloğu (docs/03 M2 / docs/05 §3.3): satış/mal-geliş satırlarının ürün adı/birimi
+        // için tek doğruluk kaynağı.
+        services.AddScoped<IProductRepository, ProductRepository>();
+
         return services;
     }
 }
