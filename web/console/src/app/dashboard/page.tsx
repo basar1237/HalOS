@@ -36,7 +36,8 @@ function formatTime(iso: string): string {
 
 export default function DashboardPage() {
   const { notifications, status, clear } = useDashboardFeed();
-  const { daily, aging, lowStock } = useDashboardMetrics();
+  const { daily, aging, lowStock, salesDashboard, pendingDocuments } =
+    useDashboardMetrics();
 
   // Bu oturumda gelen canlı satışların net toplamı ve adedi (backend günlük özetine eklenir).
   const liveSales = useMemo(() => {
@@ -117,18 +118,60 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Henüz özet uç yok — sonraki fazda bağlanacak */}
+        {/* Bekleyen Hakediş — ödenmemiş müstahsil hakedişi toplamı */}
         <section className="card">
           <p className="card__title">Bekleyen Hakediş</p>
-          <p className="card__placeholder">Veri yok</p>
+          {salesDashboard.loading ? (
+            <p className="card__placeholder">Yükleniyor…</p>
+          ) : salesDashboard.error ? (
+            <p className="card__error">{salesDashboard.error}</p>
+          ) : salesDashboard.data ? (
+            <p className="card__metric">
+              {TRY.format(salesDashboard.data.pendingSettlementTotal)}
+            </p>
+          ) : (
+            <p className="card__placeholder">Veri yok</p>
+          )}
         </section>
+
+        {/* Bekleyen e-Belge — Draft/Failed e-Fatura+e-MM+HKS toplamı */}
         <section className="card">
           <p className="card__title">Bekleyen e-Belge</p>
-          <p className="card__placeholder">Veri yok</p>
+          {pendingDocuments.loading ? (
+            <p className="card__placeholder">Yükleniyor…</p>
+          ) : pendingDocuments.error ? (
+            <p className="card__error">{pendingDocuments.error}</p>
+          ) : pendingDocuments.data ? (
+            <>
+              <p className="card__metric">{pendingDocuments.data.total}</p>
+              <p className="card__sub">
+                {pendingDocuments.data.pendingInvoices} e-Fatura ·{' '}
+                {pendingDocuments.data.pendingProducerReceipts} e-MM ·{' '}
+                {pendingDocuments.data.pendingHksNotifications} HKS
+              </p>
+            </>
+          ) : (
+            <p className="card__placeholder">Veri yok</p>
+          )}
         </section>
+
+        {/* Bugünkü Mal Geliş — bugün kabul edilen konsinye partisi adedi */}
         <section className="card">
           <p className="card__title">Bugünkü Mal Geliş</p>
-          <p className="card__placeholder">Veri yok</p>
+          {salesDashboard.loading ? (
+            <p className="card__placeholder">Yükleniyor…</p>
+          ) : salesDashboard.error ? (
+            <p className="card__error">{salesDashboard.error}</p>
+          ) : salesDashboard.data ? (
+            <>
+              <p className="card__metric">
+                {salesDashboard.data.todayConsignmentCount}
+              </p>
+              <p className="card__sub">parti · bugün</p>
+            </>
+          ) : (
+            <p className="card__placeholder">Veri yok</p>
+          )}
         </section>
       </div>
 

@@ -8,7 +8,13 @@ import { useEffect, useState } from 'react';
 
 import { apiClient, isApiError } from '@/lib/api-client';
 import { getAccessToken } from '@/lib/token-storage';
-import type { AgingReport, DailySalesSummary, StockItem } from './types';
+import type {
+  AgingReport,
+  DailySalesSummary,
+  PendingDocuments,
+  SalesDashboard,
+  StockItem,
+} from './types';
 
 export interface Metric<T> {
   data: T | null;
@@ -20,6 +26,8 @@ export interface DashboardMetrics {
   daily: Metric<DailySalesSummary>;
   aging: Metric<AgingReport>;
   lowStock: Metric<StockItem[]>;
+  salesDashboard: Metric<SalesDashboard>;
+  pendingDocuments: Metric<PendingDocuments>;
 }
 
 const LOADING = { data: null, loading: true, error: null } as const;
@@ -38,6 +46,10 @@ export function useDashboardMetrics(): DashboardMetrics {
   const [daily, setDaily] = useState<Metric<DailySalesSummary>>(LOADING);
   const [aging, setAging] = useState<Metric<AgingReport>>(LOADING);
   const [lowStock, setLowStock] = useState<Metric<StockItem[]>>(LOADING);
+  const [salesDashboard, setSalesDashboard] =
+    useState<Metric<SalesDashboard>>(LOADING);
+  const [pendingDocuments, setPendingDocuments] =
+    useState<Metric<PendingDocuments>>(LOADING);
 
   useEffect(() => {
     if (!getAccessToken()) {
@@ -45,6 +57,8 @@ export function useDashboardMetrics(): DashboardMetrics {
       setDaily(unauth);
       setAging(unauth);
       setLowStock(unauth);
+      setSalesDashboard(unauth);
+      setPendingDocuments(unauth);
       return;
     }
 
@@ -71,11 +85,19 @@ export function useDashboardMetrics(): DashboardMetrics {
     );
     void load<AgingReport>(`/api/finance/reports/aging`, setAging);
     void load<StockItem[]>(`/api/inventory/stock/low-stock`, setLowStock);
+    void load<SalesDashboard>(
+      `/api/sales/reports/dashboard?day=${today()}`,
+      setSalesDashboard,
+    );
+    void load<PendingDocuments>(
+      `/api/integration/reports/pending-documents`,
+      setPendingDocuments,
+    );
 
     return () => {
       cancelled = true;
     };
   }, []);
 
-  return { daily, aging, lowStock };
+  return { daily, aging, lowStock, salesDashboard, pendingDocuments };
 }

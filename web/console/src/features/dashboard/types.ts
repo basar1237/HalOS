@@ -33,3 +33,17 @@ export interface StockItem {
   quantityOnHand: number;
   reorderThreshold: number | null;
 }
+
+/** GET /api/sales/reports/dashboard?day=... → Sales SalesDashboardDto. */
+export interface SalesDashboard {
+  todayConsignmentCount: number;
+  pendingSettlementTotal: number;
+}
+
+/** GET /api/integration/reports/pending-documents → Integration PendingDocumentsDto. */
+export interface PendingDocuments {
+  pendingInvoices: number;
+  pendingProducerReceipts: number;
+  pendingHksNotifications: number;
+  total: number;
+}
