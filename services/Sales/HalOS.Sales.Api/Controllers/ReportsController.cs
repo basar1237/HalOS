@@ -3,6 +3,7 @@ using HalOS.Sales.Api.Authorization;
 using HalOS.Sales.Application.Contracts;
 using HalOS.Sales.Application.Features.Reports.CommissionIncomeReport;
 using HalOS.Sales.Application.Features.Reports.DailySummaryReport;
+using HalOS.Sales.Application.Features.Reports.DashboardSummary;
 using HalOS.Sales.Application.Features.Reports.SalesSummaryReport;
 using HalOS.Sales.Application.Features.Reports.SalesTrendReport;
 using MediatR;
@@ -56,6 +57,19 @@ public sealed class ReportsController : ControllerBase
     {
         var result = await _sender.Send(
             new CommissionIncomeReportQuery(from, to, daily), cancellationToken);
+        return result.ToActionResult(this);
+    }
+
+    /// <summary>
+    /// Kontrol paneli satış-tarafı özeti: verilen günün mal geliş adedi + toplam bekleyen hakediş
+    /// (docs/02 §5 günlük akış kartları).
+    /// </summary>
+    [HttpGet("dashboard")]
+    public async Task<IActionResult> Dashboard(
+        [FromQuery] DateTime day,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new DashboardSummaryQuery(day), cancellationToken);
         return result.ToActionResult(this);
     }
 

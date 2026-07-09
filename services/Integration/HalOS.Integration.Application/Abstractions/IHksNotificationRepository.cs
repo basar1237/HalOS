@@ -24,6 +24,9 @@ public interface IHksNotificationRepository
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Bekleyen (Draft/Failed) HKS bildirimi adedi — dashboard "Bekleyen e-Belge". Tenant filtreli (BK-8).</summary>
+    Task<long> CountPendingAsync(CancellationToken cancellationToken = default);
+
     void Add(HksNotification notification);
 
     void Update(HksNotification notification);

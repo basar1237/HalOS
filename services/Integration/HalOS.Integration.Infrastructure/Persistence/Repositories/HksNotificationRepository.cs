@@ -1,6 +1,7 @@
 using HalOS.Integration.Application.Abstractions;
 using HalOS.Integration.Application.Contracts;
 using HalOS.Integration.Domain.Aggregates;
+using HalOS.Integration.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace HalOS.Integration.Infrastructure.Persistence.Repositories;
@@ -46,6 +47,12 @@ internal sealed class HksNotificationRepository : IHksNotificationRepository
 
         return new PagedResult<HksNotification>(items, page, pageSize, totalCount);
     }
+
+    public Task<long> CountPendingAsync(CancellationToken cancellationToken = default) =>
+        _dbContext.HksNotifications
+            .AsNoTracking()
+            .Where(n => n.Status == HksNotificationStatus.Draft || n.Status == HksNotificationStatus.Failed)
+            .LongCountAsync(cancellationToken);
 
     public void Add(HksNotification notification) => _dbContext.HksNotifications.Add(notification);
 

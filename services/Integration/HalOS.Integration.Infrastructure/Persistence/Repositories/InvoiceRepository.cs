@@ -1,6 +1,7 @@
 using HalOS.Integration.Application.Abstractions;
 using HalOS.Integration.Application.Contracts;
 using HalOS.Integration.Domain.Aggregates;
+using HalOS.Integration.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace HalOS.Integration.Infrastructure.Persistence.Repositories;
@@ -46,6 +47,12 @@ internal sealed class InvoiceRepository : IInvoiceRepository
 
         return new PagedResult<Invoice>(items, page, pageSize, totalCount);
     }
+
+    public Task<long> CountPendingAsync(CancellationToken cancellationToken = default) =>
+        _dbContext.Invoices
+            .AsNoTracking()
+            .Where(i => i.Status == InvoiceStatus.Draft || i.Status == InvoiceStatus.Failed)
+            .LongCountAsync(cancellationToken);
 
     public void Add(Invoice invoice) => _dbContext.Invoices.Add(invoice);
 

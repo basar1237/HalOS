@@ -24,6 +24,9 @@ public interface IInvoiceRepository
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Bekleyen (Draft/Failed) e-Fatura adedi — dashboard "Bekleyen e-Belge". Tenant filtreli (BK-8).</summary>
+    Task<long> CountPendingAsync(CancellationToken cancellationToken = default);
+
     void Add(Invoice invoice);
 
     void Update(Invoice invoice);

@@ -73,4 +73,10 @@ public interface ISaleTransactionRepository
         DateTime toUtc,
         TrendGranularity granularity,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Ödenmemiş müstahsil hakedişi toplamı (dashboard "Bekleyen Hakediş"). Tamamlanmış satışların
+    /// Settlement.Status ≠ Paid olan Σ NetAmount'u. AsNoTracking, tenant filtreli (BK-8).
+    /// </summary>
+    Task<decimal> GetPendingSettlementTotalAsync(CancellationToken cancellationToken = default);
 }

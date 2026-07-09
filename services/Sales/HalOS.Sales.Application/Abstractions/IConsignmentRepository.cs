@@ -7,5 +7,8 @@ public interface IConsignmentRepository
 {
     Task<Consignment?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
+    /// <summary>Verilen günde (ReceivedAt tarihi, UTC) kabul edilen mal geliş partisi adedi (tenant filtreli).</summary>
+    Task<long> CountReceivedOnAsync(DateTime day, CancellationToken cancellationToken = default);
+
     void Add(Consignment consignment);
 }

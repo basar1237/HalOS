@@ -18,5 +18,16 @@ internal sealed class ConsignmentRepository : IConsignmentRepository
             .Include(c => c.Items)
             .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
+    public Task<long> CountReceivedOnAsync(DateTime day, CancellationToken cancellationToken = default)
+    {
+        // Gün [start, ertesi gün) yarı-açık aralığı (tarih bileşeni). Tenant global filter otomatik (BK-8).
+        var start = day.Date;
+        var end = start.AddDays(1);
+        return _dbContext.Consignments
+            .AsNoTracking()
+            .Where(c => c.ReceivedAt >= start && c.ReceivedAt < end)
+            .LongCountAsync(cancellationToken);
+    }
+
     public void Add(Consignment consignment) => _dbContext.Consignments.Add(consignment);
 }

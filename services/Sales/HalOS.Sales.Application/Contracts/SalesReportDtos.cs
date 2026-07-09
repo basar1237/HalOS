@@ -60,3 +60,15 @@ public sealed record DailySummaryReportDto(
     decimal Gross,
     decimal Commission,
     decimal Net);
+
+/// <summary>
+/// Kontrol paneli satış-tarafı özet DTO'su (docs/02 §5 günlük akış kartları). Dashboard'ın
+/// "Bugünkü Mal Geliş" ve "Bekleyen Hakediş" kartlarını besler. SALT-OKUMA CQRS; tenant filtreli (BK-8).
+/// </summary>
+/// <param name="TodayConsignmentCount">Verilen günde (ReceivedAt tarihi) kabul edilen mal geliş partisi adedi.</param>
+/// <param name="PendingSettlementTotal">
+/// Ödenmemiş müstahsil hakedişi toplamı = Σ Settlement.NetAmount (tamamlanmış satış, Settlement.Status ≠ Paid).
+/// </param>
+public sealed record SalesDashboardDto(
+    long TodayConsignmentCount,
+    decimal PendingSettlementTotal);

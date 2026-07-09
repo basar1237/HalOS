@@ -67,6 +67,15 @@ internal sealed class SaleTransactionRepository : ISaleTransactionRepository
         return new PagedResult<SaleTransaction>(items, page, pageSize, totalCount);
     }
 
+    public async Task<decimal> GetPendingSettlementTotalAsync(CancellationToken cancellationToken = default) =>
+        // Tamamlanmış satışların ödenmemiş (Status ≠ Paid) hakediş net toplamı. Tenant filter otomatik (BK-8).
+        await _dbContext.SaleTransactions
+            .AsNoTracking()
+            .Where(s => s.Status == SaleStatus.Completed
+                        && s.Settlement != null
+                        && s.Settlement.Status != SettlementStatus.Paid)
+            .SumAsync(s => (decimal?)s.Settlement!.NetAmount, cancellationToken) ?? 0m;
+
     public void Add(SaleTransaction sale) => _dbContext.SaleTransactions.Add(sale);
 
     public void Update(SaleTransaction sale) => _dbContext.SaleTransactions.Update(sale);

@@ -25,6 +25,9 @@ public interface IProducerReceiptRepository
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Bekleyen (Draft/Failed) e-MM adedi — dashboard "Bekleyen e-Belge". Tenant filtreli (BK-8).</summary>
+    Task<long> CountPendingAsync(CancellationToken cancellationToken = default);
+
     void Add(ProducerReceipt receipt);
 
     void Update(ProducerReceipt receipt);
