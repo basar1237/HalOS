@@ -84,6 +84,9 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Acilista bekleyen migration'lari uygula (docs/04 §9 tek-komut dev; Migrate idempotent).
+HalOS.BuildingBlocks.Infrastructure.MigrationExtensions.ApplyMigrations<ColdChainDbContext>(app.Services);
+
 app.UseExceptionHandler();
 app.UseSerilogRequestLogging();
 

@@ -375,6 +375,92 @@ services:
       - halos
 
   # ---------------------------------------------------------------------------
+  # Identity (Kimlik & JWT) — kimlik doğrulama, JWT/2FA, tenant (ADR-006/07).
+  #   docker compose --profile apps up -d identity
+  # JWT üreticisi: tokenları buradaki Jwt__SigningKey ile imzalar; TÜM diğer servisler + AI
+  # Gateway AYNI anahtarla doğrular (docs/04 §7). Mesajlaşma kullanmaz (yalnız DB + JWT).
+  # ---------------------------------------------------------------------------
+  identity:
+    profiles: ["apps"]
+    build:
+      context: ..
+      dockerfile: services/Identity/HalOS.Identity.Api/Dockerfile
+    container_name: halos-identity
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__IdentityDb: "Host=postgres;Port=5432;Database=halos_identity;Username=${POSTGRES_USER:-halos};Password=${POSTGRES_PASSWORD:-halos_dev_pw}"
+      # Tüm servislerle AYNI imza anahtarı olmalı (docs/04 §7).
+      Jwt__SigningKey: ${IDENTITY_JWT_SIGNING_KEY:-dev-only-signing-key-change-me-please-0123456789abcdef}
+    ports:
+      - "${IDENTITY_PORT:-5053}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - halos
+
+  # Party (Cari Kartları) — müstahsil/alıcı/tüccar cari kartları + stopaj profili (ADR-006).
+  #   docker compose --profile apps up -d party
+  # ProducerWithholdingProfileChanged yayar (Sales tüketir). halos_party DB'sine yazar.
+  party:
+    profiles: ["apps"]
+    build:
+      context: ..
+      dockerfile: services/Party/HalOS.Party.Api/Dockerfile
+    container_name: halos-party
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__PartyDb: "Host=postgres;Port=5432;Database=halos_party;Username=${POSTGRES_USER:-halos};Password=${POSTGRES_PASSWORD:-halos_dev_pw}"
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: "/"
+      RabbitMq__Username: ${RABBITMQ_USER:-halos}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:-halos_dev_pw}
+      Jwt__SigningKey: ${PARTY_JWT_SIGNING_KEY:-dev-only-signing-key-change-me-please-0123456789abcdef}
+    ports:
+      - "${PARTY_PORT:-5057}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - halos
+
+  # Sales (Satış & Komisyon) — mal geliş, satış, komisyon/kesinti/hakediş (ADR-006).
+  #   docker compose --profile apps up -d sales
+  # SaleCompleted + ConsignmentReceived yayar (Finance/Integration/Inventory/Search/Notification
+  # tüketir); ProducerWithholdingProfileChanged tüketir. halos_sales DB'sine yazar.
+  sales:
+    profiles: ["apps"]
+    build:
+      context: ..
+      dockerfile: services/Sales/HalOS.Sales.Api/Dockerfile
+    container_name: halos-sales
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__SalesDb: "Host=postgres;Port=5432;Database=halos_sales;Username=${POSTGRES_USER:-halos};Password=${POSTGRES_PASSWORD:-halos_dev_pw}"
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: "/"
+      RabbitMq__Username: ${RABBITMQ_USER:-halos}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:-halos_dev_pw}
+      Jwt__SigningKey: ${SALES_JWT_SIGNING_KEY:-dev-only-signing-key-change-me-please-0123456789abcdef}
+    ports:
+      - "${SALES_PORT:-5061}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - halos
+
+  # ---------------------------------------------------------------------------
   # AI Gateway (Python/FastAPI) — ERP <-> AI güvenli sınırı (docs/04 ADR-002, S2.4).
   #   docker compose --profile apps up -d ai-gateway
   # SALT-OKUMA: ERP'nin /reports/* uçlarını okur; hiçbir yazma yapmaz. Gelen JWT'yi
@@ -389,6 +475,8 @@ services:
     container_name: halos-ai-gateway
     restart: unless-stopped
     environment:
+      # Ortam: dev'de repoya işlenmiş dev imza anahtarı kabul edilir (config.validate_signing_key).
+      APP_ENV: ${ASPNETCORE_ENVIRONMENT:-Development}
       # Anthropic anahtarı ortamdan geçirilir; boş bırakılırsa Stub LLM devreye girer.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-6}
