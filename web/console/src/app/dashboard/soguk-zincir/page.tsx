@@ -18,7 +18,14 @@ function formatTemp(value: number | null): string {
 }
 
 const COLUMNS: Column<ColdStorageUnit>[] = [
-  { header: 'Soğuk Oda', cell: (u) => u.name },
+  {
+    header: 'Soğuk Oda',
+    cell: (u) => (
+      <Link href={`/dashboard/soguk-zincir/${u.id}`} className="row-link">
+        {u.name}
+      </Link>
+    ),
+  },
   {
     header: 'İzin Verilen Aralık',
     cell: (u) => `${TEMP.format(u.minTempC)} … ${TEMP.format(u.maxTempC)} °C`,

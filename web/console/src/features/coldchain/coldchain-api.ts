@@ -27,6 +27,31 @@ export function registerColdStorageUnit(
   return apiClient.post('/api/coldchain/cold-storage-units', request);
 }
 
+/** Tek bir sensör okuması (backend SensorReadingDto). */
+export interface SensorReading {
+  id: string;
+  temperatureC: number;
+  humidityPercent: number | null;
+  occurredAt: string;
+}
+
+export function getColdStorageUnit(id: string): Promise<ColdStorageUnit> {
+  return apiClient.get(`/api/coldchain/cold-storage-units/${id}`);
+}
+
+export function listReadings(id: string, limit = 50): Promise<SensorReading[]> {
+  return apiClient.get(`/api/coldchain/cold-storage-units/${id}/readings?limit=${limit}`);
+}
+
+export interface UpdateThresholdsRequest {
+  minTempC: number;
+  maxTempC: number;
+}
+
+export function updateThresholds(id: string, request: UpdateThresholdsRequest): Promise<unknown> {
+  return apiClient.put(`/api/coldchain/cold-storage-units/${id}/thresholds`, request);
+}
+
 export interface RecordReadingRequest {
   readingId: string;
   temperatureC: number;
