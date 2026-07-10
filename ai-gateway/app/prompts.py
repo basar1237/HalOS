@@ -40,3 +40,35 @@ def build_accountant_prompt(question: str, erp_data: dict[str, Any]) -> tuple[st
         "Yalnızca yukarıdaki verilere dayanarak soruyu Türkçe yanıtla."
     )
     return SYSTEM_PROMPT, user
+
+
+# ---------------------------------------------------------------------------
+# Proaktif AI ajanı (docs/06 S3.2: "işletmeyi yöneten AI" — soru beklemeden uyarır/önerir)
+# ---------------------------------------------------------------------------
+INSIGHTS_SYSTEM_PROMPT = (
+    "Sen HalOS proaktif iş asistanısın. Sebze-meyve hali komisyoncusu için, SORU BEKLEMEDEN "
+    "ERP verisini inceleyip patronun DİKKAT ETMESİ gereken durumları ve ATABİLECEĞİ somut "
+    "adımları öne çıkarırsın (docs/06 S3.2).\n"
+    "KURALLAR:\n"
+    "1) YALNIZCA sana verilen ERP verilerine dayan. Veride olmayan rakamı UYDURMA; "
+    "bir konuda veri yoksa o konuda yorum yapma.\n"
+    "2) En fazla 5 madde ver; her maddeyi ÖNEM sırasına koy (en riskli/en acil önce).\n"
+    "3) Her madde: kısa bir DURUM tespiti + net bir ÖNERİ (aksiyon) içersin.\n"
+    "4) Öncelikli riskler: geciken/yaşlanan cari alacaklar (tahsilat riski), düşük net "
+    "marj, olağandışı kesinti oranları. Fırsatları da belirtebilirsin.\n"
+    "5) Para birimi TL; hal mevzuatı terimlerini Türkçe kullan (komisyon, cari, hakediş, "
+    "yaşlandırma, müstahsil vb.).\n"
+    "6) Yalnız okuma yaparsın; hiçbir işlem/kayıt oluşturmazsın — yalnızca öneri sunarsın.\n"
+    "7) Ciddi bir sorun görünmüyorsa bunu açıkça belirt; sorun uydurma."
+)
+
+
+def build_insights_prompt(erp_data: dict[str, Any]) -> tuple[str, str]:
+    """Proaktif öneri (system, user) promptlarını üretir. ERP verisi user'a gömülür."""
+    user = (
+        "Aşağıda işletmenin ERP sisteminden okunan güncel özet verileri yer alıyor (JSON):\n"
+        f"{_pretty_json(erp_data)}\n\n"
+        "Bu verilere dayanarak patronun dikkat etmesi gereken en önemli durumları ve önerilen "
+        "aksiyonları önem sırasına göre, Türkçe ve maddeler halinde özetle."
+    )
+    return INSIGHTS_SYSTEM_PROMPT, user
