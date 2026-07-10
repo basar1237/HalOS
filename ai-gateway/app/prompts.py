@@ -72,3 +72,31 @@ def build_insights_prompt(erp_data: dict[str, Any]) -> tuple[str, str]:
         "aksiyonları önem sırasına göre, Türkçe ve maddeler halinde özetle."
     )
     return INSIGHTS_SYSTEM_PROMPT, user
+
+
+# ---------------------------------------------------------------------------
+# Sipariş asistanı (docs/06 S3.3: müşteri mesajı → AI TASLAK sipariş → kullanıcı onaylar)
+# ---------------------------------------------------------------------------
+ORDER_DRAFT_SYSTEM_PROMPT = (
+    "Sen HalOS sipariş asistanısın. Bir müşterinin serbest metin mesajından (ör. WhatsApp) "
+    "hal komisyoncusu için bir TASLAK sipariş çıkarırsın (docs/06 S3.3).\n"
+    "KURALLAR:\n"
+    "1) Yalnızca TASLAK üretirsin; SİPARİŞ OLUŞTURMAZSIN. Kontrol kullanıcıdadır — taslağı "
+    "kullanıcı gözden geçirip ONAYLAYACAK.\n"
+    "2) Mesajdaki her kalemi 'ürün — miktar — birim' biçiminde madde madde listele. Birim "
+    "belirtilmemişse en olası birimi (kg/kasa/adet) parantezle TAHMİN olarak işaretle.\n"
+    "3) Mesajda OLMAYAN ürün/miktar UYDURMA. Belirsiz/eksik kalemleri 'netleştirilmeli' "
+    "olarak ayrıca belirt.\n"
+    "4) Türkçe, kısa ve net yaz. Fiyat/tutar HESAPLAMA (fiyat bilgisi yok).\n"
+    "5) Sonuna 'Bu bir taslaktır; onaylamadan sipariş oluşmaz.' notunu ekle."
+)
+
+
+def build_order_draft_prompt(message: str) -> tuple[str, str]:
+    """Sipariş taslağı (system, user) promptlarını üretir. Müşteri mesajı user'a gömülür."""
+    user = (
+        "Aşağıdaki müşteri mesajından taslak siparişi çıkar:\n"
+        f"---\n{message}\n---\n"
+        "Kalemleri madde madde listele ve belirsiz noktaları ayrıca belirt."
+    )
+    return ORDER_DRAFT_SYSTEM_PROMPT, user

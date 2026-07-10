@@ -28,7 +28,11 @@ from .auth import Principal, require_accountant
 from .config import Settings, get_settings
 from .erp_client import ErpReadClient, ErpUnavailableError, HttpErpReadClient
 from .llm import LlmClient, StubLlmClient, build_llm_client
-from .prompts import build_accountant_prompt, build_insights_prompt
+from .prompts import (
+    build_accountant_prompt,
+    build_insights_prompt,
+    build_order_draft_prompt,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("halos.ai.gateway")
@@ -101,6 +105,20 @@ class InsightsResponse(BaseModel):
     summary: str
     used_sources: list[str]
     model: str
+
+
+class DraftOrderRequest(BaseModel):
+    """Müşteri serbest metin mesajı (ör. WhatsApp) — taslak sipariş çıkarılır."""
+
+    message: str = Field(..., min_length=1, description="Müşterinin sipariş mesajı.")
+
+
+class DraftOrderResponse(BaseModel):
+    """AI taslak sipariş (kullanıcı onayı gerektirir; sipariş OLUŞTURULMAZ)."""
+
+    draft: str
+    model: str
+    disclaimer: str = "Bu bir taslaktır; kullanıcı onaylamadan sipariş oluşturulmaz."
 
 
 class HealthResponse(BaseModel):
@@ -242,3 +260,25 @@ def insights(
         used_sources=used_sources,
         model=_model_name(llm),
     )
+
+
+@app.post("/ai/draft-order", response_model=DraftOrderResponse, tags=["ai"])
+def draft_order(
+    payload: DraftOrderRequest,
+    principal: Principal = Depends(require_accountant),
+    llm: LlmClient = Depends(get_llm_client),
+) -> DraftOrderResponse:
+    """Sipariş asistanı (docs/06 S3.3): müşteri mesajından TASLAK sipariş çıkarır.
+    Kontrol kullanıcıdadır — sipariş OLUŞTURULMAZ, yalnız taslak döner. ERP'ye yazmaz."""
+    system_prompt, user_prompt = build_order_draft_prompt(payload.message)
+
+    try:
+        draft_text = llm.answer(system_prompt, user_prompt)
+    except Exception as exc:  # noqa: BLE001 — LLM sağlayıcı hatalarını anlamlı 502'ye çevir
+        logger.exception("LLM çağrısı başarısız (tenant=%s)", principal.tenant_id)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"AI modeline erişilemedi: {exc}",
+        ) from exc
+
+    return DraftOrderResponse(draft=draft_text, model=_model_name(llm))

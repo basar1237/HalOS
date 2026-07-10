@@ -13,7 +13,11 @@ from __future__ import annotations
 
 from app.config import Settings
 from app.llm import AnthropicLlmClient, StubLlmClient, build_llm_client
-from app.prompts import build_accountant_prompt, build_insights_prompt
+from app.prompts import (
+    build_accountant_prompt,
+    build_insights_prompt,
+    build_order_draft_prompt,
+)
 
 from .conftest import make_token
 
@@ -179,6 +183,55 @@ def test_insights_prompt_builder_embeds_erp_data_and_is_proactive():
     # Kullanıcı promptu: ERP verisi (sayılar) gömülü.
     assert "112500.5" in user
     assert "81000" in user
+
+
+# --- (8) sipariş asistanı: /ai/draft-order (docs/06 S3.3) ------------------
+def test_draft_order_without_token_is_401(client):
+    response = client.post("/ai/draft-order", json={"message": "5 kasa domates"})
+    assert response.status_code == 401
+
+
+def test_draft_order_with_unauthorized_role_is_403(client):
+    token = make_token(role="Cashier")
+    response = client.post(
+        "/ai/draft-order",
+        json={"message": "5 kasa domates"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 403
+
+
+def test_draft_order_with_accountant_returns_draft(client):
+    token = make_token(role="Accountant")
+    response = client.post(
+        "/ai/draft-order",
+        json={"message": "Merhaba, 5 kasa domates 2 kasa biber gönderin"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["draft"]  # boş olmamalı
+    assert body["model"] == "stub"
+    assert "taslak" in body["disclaimer"].lower()
+    # Stub yanıt müşteri mesajını (user prompt üzerinden) yansıtmalı.
+    assert "domates" in body["draft"]
+
+
+def test_draft_order_empty_message_is_422(client):
+    token = make_token(role="Accountant")
+    response = client.post(
+        "/ai/draft-order",
+        json={"message": ""},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 422
+
+
+def test_order_draft_prompt_embeds_message_and_requires_approval():
+    system, user = build_order_draft_prompt("3 kasa elma")
+    # Kontrol kullanıcıda: sipariş oluşturulmaz vurgusu.
+    assert "OLUŞTURMAZSIN" in system or "onayla" in system.lower()
+    assert "3 kasa elma" in user
 
 
 def test_build_llm_client_with_key_returns_anthropic():
