@@ -49,7 +49,10 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
             tokens.WithOwner().HasForeignKey(t => t.UserId);
             tokens.HasKey(t => t.Id);
 
-            tokens.Property(t => t.Id).HasColumnName("id");
+            // Id domain'de üretilir (Guid.NewGuid); store ÜRETMEZ. ValueGeneratedNever olmazsa EF,
+            // takipli User'a login sırasında eklenen yeni token'ı (client-set Guid) MEVCUT satır sanıp
+            // Modified işler → var olmayan satıra UPDATE → DbUpdateConcurrencyException (StockItem deseni).
+            tokens.Property(t => t.Id).HasColumnName("id").ValueGeneratedNever();
             tokens.Property(t => t.UserId).HasColumnName("user_id");
             tokens.Property(t => t.TokenHash).HasColumnName("token_hash").IsRequired().HasMaxLength(256);
             tokens.Property(t => t.ExpiresOnUtc).HasColumnName("expires_on_utc");
