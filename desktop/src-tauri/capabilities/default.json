@@ -1,0 +1,19 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Hal Terminali varsayılan yetkileri — yerel SQLite tam erişim (offline çekirdek).",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "sql:allow-execute",
+      "allow": [{ "path": "sqlite:halos-terminal.db" }]
+    },
+    {
+      "identifier": "sql:allow-select",
+      "allow": [{ "path": "sqlite:halos-terminal.db" }]
+    },
+    "sql:allow-load",
+    "sql:allow-close"
+  ]
+}

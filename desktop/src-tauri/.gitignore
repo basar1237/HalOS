@@ -1,0 +1,4 @@
+# Rust / Tauri üretilen çıktılar
+/target/
+/gen/
+Cargo.lock

@@ -144,3 +144,41 @@ jobs:
 
       - name: Test
         run: npm test
+
+  # ---------------------------------------------------------------------------
+  # Job 5 — Hal Terminali masaüstü (Tauri + React, ADR-005): type-check + test + build.
+  # Offline çekirdek (outbox/sync/money/conflict) burada Vitest ile doğrulanır. Rust/Tauri
+  # kabuğu bu job'da DERLENMEZ (native araç zinciri gerektirir); frontend katmanı doğrulanır.
+  # ---------------------------------------------------------------------------
+  desktop:
+    name: Desktop Terminal (type-check & test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
+            npm ci
+          else
+            echo "No lockfile found; using 'npm install' (commit package-lock.json to enable 'npm ci')."
+            npm install
+          fi
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Test
+        run: npm test
+
+      - name: Build (frontend)
+        run: npm run build

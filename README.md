@@ -53,6 +53,8 @@ HalOS/
 │   └── Gateway                     # API Gateway (BFF, YARP)
 ├── ai-gateway/                     # Python/FastAPI + Claude (HalOS.sln'de DEĞİL)
 ├── web/console/                    # Next.js 14 yönetim konsolu
+├── mobile/                         # Expo/React Native patron uygulaması (ADR-004)
+├── desktop/                        # Tauri + React Hal Terminali (offline-first, ADR-005)
 ├── deploy/docker-compose.yml       # Tüm altyapı + uygulama servisleri
 └── docs/                           # Mimari (04), domain (02), PRD (03), yol haritası (06)
 ```
@@ -63,6 +65,8 @@ HalOS/
 - **Node 20+** (web konsolu için)
 - **Docker + Docker Compose** (altyapı ve tam yığın için)
 - (opsiyonel) **Python 3.12** — AI Gateway'i yerelde çalıştırmak için
+- (opsiyonel) **Rust + Tauri ön koşulları** — Hal Terminali masaüstü uygulamasını derlemek için
+  (bkz. https://tauri.app/start/prerequisites/; frontend'i tek başına çalıştırmak için gerekmez)
 
 ## Çalıştırma
 
@@ -109,11 +113,29 @@ npm install
 npm run dev
 ```
 
+### Hal Terminali — masaüstü (offline-first, Tauri)
+
+Hale özel, internetsiz çalışan satış terminali (ADR-005). Satışlar yerel SQLite'a yazılır,
+bağlantı gelince outbox üzerinden buluta senkronlanır (docs/04 §5).
+
+```bash
+cd desktop
+npm install
+npm run dev          # yalnız web frontend (tarayıcı, http://localhost:1420)
+npm run tauri dev    # native masaüstü penceresi (Rust/Tauri araç zinciri gerekir)
+```
+
+Gateway adresi `VITE_API_BASE_URL` ile ayarlanır (varsayılan `http://localhost:5000`).
+Offline mimari: `src/lib/{outbox,sync,conflict,money}.ts` (saf, Vitest ile test edilir),
+yerel şema `src-tauri/src/lib.rs` (plugin-sql migration).
+
 ### Testler
 
 ```bash
 dotnet test HalOS.sln             # .NET: 329 test (9 servis)
-cd web/console && npm test        # Frontend: Vitest birim testleri
+cd web/console && npm test        # Web konsol: Vitest birim testleri
+cd mobile && npm test             # Mobil: Vitest birim testleri
+cd desktop && npm test            # Masaüstü: 37 test (outbox/sync/money/conflict/format)
 cd ai-gateway && pytest           # AI Gateway: pytest
 ```
 
@@ -123,8 +145,9 @@ cd ai-gateway && pytest           # AI Gateway: pytest
   (STUB gateway), stok/fire, raporlar, denetim — **KOD TAMAM**.
 - **Faz 2:** Gelişmiş stok, Elasticsearch arama, AI Gateway, canlı SignalR dashboard, ürün
   kataloğu, API Gateway, web konsolu (okuma+yazma) — **KOD TAMAM**.
-- **Sıradaki:** mobil (React Native/Expo), masaüstü (Tauri), gerçek GİB/HKS sandbox
-  entegrasyonu (dış kimlik gerekir).
+- **Faz 3 (kısmi):** mobil patron uygulaması (React Native/Expo, ADR-004) — **KOD TAMAM**;
+  Hal Terminali masaüstü (Tauri + offline-first sync engine, ADR-005) — **KOD TAMAM**.
+- **Sıradaki:** gerçek GİB/HKS sandbox entegrasyonu (dış kimlik gerekir), soğuk zincir IoT.
 
 ## Notlar
 
