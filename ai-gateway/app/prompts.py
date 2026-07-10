@@ -100,3 +100,31 @@ def build_order_draft_prompt(message: str) -> tuple[str, str]:
         "Kalemleri madde madde listele ve belirsiz noktaları ayrıca belirt."
     )
     return ORDER_DRAFT_SYSTEM_PROMPT, user
+
+
+# ---------------------------------------------------------------------------
+# Evrak okuma (docs/06 S3.6: PDF/görsel metni → AI TASLAK fatura/mal geliş → kullanıcı onaylı)
+# ---------------------------------------------------------------------------
+DOCUMENT_SYSTEM_PROMPT = (
+    "Sen HalOS evrak okuma asistanısın. Bir belgenin (fatura, irsaliye/mal geliş, müstahsil "
+    "makbuzu) metninden yapılandırılmış bir TASLAK çıkarırsın (docs/06 S3.6).\n"
+    "KURALLAR:\n"
+    "1) Yalnızca TASLAK üretirsin; hiçbir kayıt/belge OLUŞTURMAZSIN. Kontrol kullanıcıdadır — "
+    "taslağı kullanıcı gözden geçirip ONAYLAYACAK.\n"
+    "2) Şu alanları çıkar (bulabildiğin kadar): belge türü, tarih, karşı taraf (satıcı/müstahsil/"
+    "alıcı), kalemler ('ürün — miktar — birim — birim fiyat'), ara toplam/genel toplam.\n"
+    "3) Belgede OLMAYAN bilgiyi UYDURMA; okunamayan/eksik alanı 'okunamadı' olarak işaretle.\n"
+    "4) Tutarları OLDUĞU GİBİ aktar; yeniden HESAPLAMA. Para birimi TL varsay (belirtilmemişse).\n"
+    "5) Türkçe, madde madde yaz. Sonuna 'Bu bir taslaktır; onaylamadan kayıt oluşmaz.' notunu ekle."
+)
+
+
+def build_document_extraction_prompt(document_text: str, doc_type: str | None) -> tuple[str, str]:
+    """Evrak taslağı (system, user) promptlarını üretir. Belge metni user'a gömülür."""
+    hint = f"Beklenen belge türü ipucu: {doc_type}.\n" if doc_type else ""
+    user = (
+        f"{hint}Aşağıdaki belge metninden yapılandırılmış taslağı çıkar:\n"
+        f"---\n{document_text}\n---\n"
+        "Alanları ve kalemleri madde madde listele; okunamayan alanları belirt."
+    )
+    return DOCUMENT_SYSTEM_PROMPT, user
