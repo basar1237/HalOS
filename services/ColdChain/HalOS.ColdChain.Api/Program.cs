@@ -16,6 +16,11 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// .NET 8 JsonWebTokenHandler, JwtBearerOptions.MapInboundClaims=false'u handler instance'ına yansıtmaz
+// (statik DefaultMapInboundClaims=true kullanır) → "role" claim'i URI'ye map'lenir, RoleClaimType="role"
+// ile IsInRole BOZULUR (403). Statik varsayılanı kapatıp kısa claim adlarını KORU (RBAC düzeltmesi).
+Microsoft.IdentityModel.JsonWebTokens.JsonWebTokenHandler.DefaultMapInboundClaims = false;
+
 // Serilog: yapısal loglama → konsol + (yapılandırılmışsa) Seq (docs/04 §8).
 builder.Host.UseSerilog((context, loggerConfig) =>
     loggerConfig.ReadFrom.Configuration(context.Configuration));
