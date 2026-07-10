@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from app.config import Settings
 from app.llm import AnthropicLlmClient, StubLlmClient, build_llm_client
-from app.prompts import build_accountant_prompt
+from app.prompts import build_accountant_prompt, build_insights_prompt
 
 from .conftest import make_token
 
@@ -135,6 +135,50 @@ def test_build_llm_client_without_key_returns_stub():
 def test_build_llm_client_empty_key_returns_stub():
     settings = Settings(anthropic_api_key="   ")  # boşluk → anahtar yok sayılır
     assert isinstance(build_llm_client(settings), StubLlmClient)
+
+
+# --- (7) proaktif AI ajanı: /ai/insights (docs/06 S3.2) --------------------
+def test_insights_without_token_is_401(client):
+    response = client.post("/ai/insights", json={})
+    assert response.status_code == 401
+
+
+def test_insights_with_unauthorized_role_is_403(client):
+    token = make_token(role="Cashier")
+    response = client.post(
+        "/ai/insights", json={}, headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 403
+
+
+def test_insights_with_accountant_returns_summary_and_sources(client):
+    token = make_token(role="Accountant")
+    response = client.post(
+        "/ai/insights", json={}, headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["summary"]  # boş olmamalı
+    assert body["model"] == "stub"
+    assert body["used_sources"] == [
+        "sales:/reports/sales-summary",
+        "finance:/reports/aging",
+    ]
+
+
+def test_insights_prompt_builder_embeds_erp_data_and_is_proactive():
+    erp_data = {
+        "sales_summary": {"totalNet": 112500.50, "currency": "TRY"},
+        "aging": {"totalAmount": 81000.00, "days31Plus": {"amount": 3000.00}},
+    }
+    system, user = build_insights_prompt(erp_data)
+
+    # Sistem promptu: proaktif rol + kısıtlar Türkçe.
+    assert "proaktif" in system.lower()
+    assert "UYDURMA" in system or "uydurma" in system.lower()
+    # Kullanıcı promptu: ERP verisi (sayılar) gömülü.
+    assert "112500.5" in user
+    assert "81000" in user
 
 
 def test_build_llm_client_with_key_returns_anthropic():

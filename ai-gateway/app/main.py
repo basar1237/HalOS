@@ -28,7 +28,7 @@ from .auth import Principal, require_accountant
 from .config import Settings, get_settings
 from .erp_client import ErpReadClient, ErpUnavailableError, HttpErpReadClient
 from .llm import LlmClient, StubLlmClient, build_llm_client
-from .prompts import build_accountant_prompt
+from .prompts import build_accountant_prompt, build_insights_prompt
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("halos.ai.gateway")
@@ -73,6 +73,32 @@ class AskResponse(BaseModel):
     """AI muhasebeci yanıtı ve kullanılan veri kaynakları."""
 
     answer: str
+    used_sources: list[str]
+    model: str
+
+
+class InsightsRequest(BaseModel):
+    """Proaktif öneri isteği — opsiyonel tarih aralığı (yoksa son 30 gün / bugün)."""
+
+    date_from: date | None = Field(default=None, description="Satış özeti başlangıcı (opsiyonel).")
+    date_to: date | None = Field(default=None, description="Satış özeti bitişi (opsiyonel).")
+    as_of: date | None = Field(default=None, description="Cari yaşlandırma referansı (opsiyonel).")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _map_short_keys(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            mapping = {"from": "date_from", "to": "date_to", "asOf": "as_of"}
+            for short, full in mapping.items():
+                if short in data and full not in data:
+                    data[full] = data[short]
+        return data
+
+
+class InsightsResponse(BaseModel):
+    """Proaktif AI önerileri (öncelikli aksiyon listesi, markdown metin)."""
+
+    summary: str
     used_sources: list[str]
     model: str
 
@@ -163,6 +189,56 @@ def ask(
 
     return AskResponse(
         answer=answer_text,
+        used_sources=used_sources,
+        model=_model_name(llm),
+    )
+
+
+@app.post("/ai/insights", response_model=InsightsResponse, tags=["ai"])
+def insights(
+    payload: InsightsRequest,
+    principal: Principal = Depends(require_accountant),
+    erp: ErpReadClient = Depends(get_erp_client),
+    llm: LlmClient = Depends(get_llm_client),
+) -> InsightsResponse:
+    """Proaktif AI ajanı (docs/06 S3.2): soru beklemeden ERP verisinden öncelikli
+    uyarı/öneri üretir. SALT-OKUMA; tenant kullanıcı token'ından çözülür."""
+    today = datetime.now(timezone.utc).date()
+    date_from = payload.date_from or (today - timedelta(days=30))
+    date_to = payload.date_to or today
+    as_of = payload.as_of or today
+
+    erp_data: dict[str, object] = {}
+    used_sources: list[str] = []
+
+    try:
+        erp_data["sales_summary"] = erp.get_sales_summary(
+            principal.tenant_id, principal.token, date_from, date_to
+        )
+        used_sources.append("sales:/reports/sales-summary")
+
+        erp_data["aging"] = erp.get_aging(principal.tenant_id, principal.token, as_of)
+        used_sources.append("finance:/reports/aging")
+    except ErpUnavailableError as exc:
+        logger.warning("ERP okunamadı (tenant=%s): %s", principal.tenant_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"ERP raporlarına erişilemedi: {exc}",
+        ) from exc
+
+    system_prompt, user_prompt = build_insights_prompt(erp_data)
+
+    try:
+        summary_text = llm.answer(system_prompt, user_prompt)
+    except Exception as exc:  # noqa: BLE001 — LLM sağlayıcı hatalarını anlamlı 502'ye çevir
+        logger.exception("LLM çağrısı başarısız (tenant=%s)", principal.tenant_id)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"AI modeline erişilemedi: {exc}",
+        ) from exc
+
+    return InsightsResponse(
+        summary=summary_text,
         used_sources=used_sources,
         model=_model_name(llm),
     )
