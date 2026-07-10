@@ -66,6 +66,9 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        // JWT kısa claim adlarını (ör. "role") uzun URI'ye EŞLEME (MapInboundClaims=true varsayılanı)
+        // RoleClaimType="role" ile IsInRole'u bozar (403). Kapat → custom claimler korunur.
+        options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,

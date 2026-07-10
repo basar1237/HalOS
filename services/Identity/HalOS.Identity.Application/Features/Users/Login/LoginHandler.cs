@@ -79,8 +79,11 @@ internal sealed class LoginHandler : ICommandHandler<LoginCommand, Authenticatio
         user.IssueRefreshToken(
             _tokenService.HashRefreshToken(tokens.RefreshToken),
             tokens.RefreshTokenExpiresOnUtc);
-        _users.Update(user);
 
+        // NOT: user, GetByEmailAsync ile TAKİPLİ (tracked) yüklenir → yeni owned RefreshToken'ı
+        // EF change tracker Added olarak algılar. Burada _users.Update(user) ÇAĞIRILMAZ: Update
+        // tüm grafiği (yeni token dahil) Modified işaretler ve var olmayan satıra UPDATE →
+        // DbUpdateConcurrencyException (0 satır). SaveChanges tek başına doğru şekilde INSERT eder.
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new AuthenticationResult(
