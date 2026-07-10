@@ -87,3 +87,15 @@ export interface CurrentAccount {
   balance: number;
   entryCount: number;
 }
+
+/** ColdChain ColdStorageUnitDto (soğuk oda + son okuma özeti). */
+export interface ColdStorageUnit {
+  id: string;
+  name: string;
+  minTempC: number;
+  maxTempC: number;
+  isActive: boolean;
+  latestTemperatureC: number | null;
+  latestReadingAt: string | null;
+  readingCount: number;
+}

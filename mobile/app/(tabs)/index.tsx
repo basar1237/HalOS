@@ -7,10 +7,17 @@ import { useAuth } from '@/lib/auth';
 import { useQuery } from '@/lib/use-query';
 import type {
   AgingReport,
+  ColdStorageUnit,
   DailySalesSummary,
+  PagedResult,
   PendingDocuments,
   SalesDashboard,
 } from '@/shared/types';
+
+function isBreaching(u: ColdStorageUnit): boolean {
+  if (!u.isActive || u.latestTemperatureC == null) return false;
+  return u.latestTemperatureC > u.maxTempC || u.latestTemperatureC < u.minTempC;
+}
 
 function Card({
   title,
@@ -48,6 +55,12 @@ export default function PanelScreen() {
   const dash = useQuery<SalesDashboard>(`/api/sales/reports/dashboard?day=${todayIso()}`);
   const aging = useQuery<AgingReport>('/api/finance/reports/aging');
   const docs = useQuery<PendingDocuments>('/api/integration/reports/pending-documents');
+  const cold = useQuery<PagedResult<ColdStorageUnit>>(
+    '/api/coldchain/cold-storage-units?page=1&pageSize=100',
+  );
+
+  const coldUnits = cold.data?.items ?? [];
+  const alarmCount = coldUnits.filter(isBreaching).length;
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
@@ -90,6 +103,14 @@ export default function PanelScreen() {
         }
         loading={docs.loading}
         error={docs.error}
+      />
+
+      <Card
+        title="Soğuk Zincir Alarm"
+        value={cold.data ? String(alarmCount) : undefined}
+        sub={cold.data ? `${coldUnits.length} oda izleniyor` : undefined}
+        loading={cold.loading}
+        error={cold.error}
       />
 
       <Text style={styles.logout} onPress={() => void logout()}>
