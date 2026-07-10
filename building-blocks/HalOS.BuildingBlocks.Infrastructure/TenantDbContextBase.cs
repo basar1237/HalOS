@@ -16,6 +16,18 @@ public abstract class TenantDbContextBase : DbContext
 {
     private readonly ITenantContext _tenantContext;
 
+    static TenantDbContextBase()
+    {
+        // Tüm HalOS zaman damgaları UTC'dir (docs/05). Ancak API query-string'inden gelen tarih
+        // parametreleri (ör. /reports/...?from=2026-07-10) DateTimeKind.Unspecified olur ve Npgsql
+        // bunları 'timestamp with time zone' kolonlarına yazmayı/karşılaştırmayı reddeder
+        // (ArgumentException → 500). Bu switch, Unspecified DateTime'ları UTC kabul eder — böylece
+        // tüm servislerdeki tarih-aralıklı sorgular (satış raporları, mal-geliş sayımı vb.) her
+        // query'de tek tek SpecifyKind gerektirmeden doğru çalışır. Statik ctor, ilk DbContext
+        // örneği oluşmadan (tip init) çalışır → switch Npgsql tip eşleyicisinden önce set edilir.
+        AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+    }
+
     protected TenantDbContextBase(DbContextOptions options, ITenantContext tenantContext)
         : base(options)
     {
