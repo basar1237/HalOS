@@ -8,4 +8,7 @@ public static class NotificationTypes
 {
     /// <summary>Bir satış tamamlandığında yayınlanan bildirim türü (kaynak: <c>SaleCompleted</c>).</summary>
     public const string SaleCompleted = "sale.completed";
+
+    /// <summary>Soğuk zincir sıcaklık eşiği aşıldığında (kaynak: <c>TemperatureThresholdBreached</c>).</summary>
+    public const string TemperatureThresholdBreached = "coldchain.threshold_breached";
 }

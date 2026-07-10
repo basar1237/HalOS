@@ -275,6 +275,38 @@ services:
     networks:
       - halos
 
+  # ColdChain (Soğuk Zincir / IoT) — S3.1 / docs/04 §6. Sensör okumalarını alır, sıcaklık eşiği
+  # aşımında TemperatureThresholdBreached'i el-yapımı outbox üzerinden yayınlar (Notification tüketir).
+  # YALNIZ yayıncı (consumer yok). halos_coldchain DB'sine yazar.
+  #   docker compose --profile apps up -d coldchain
+  coldchain:
+    profiles: ["apps"]
+    build:
+      context: ..
+      dockerfile: services/ColdChain/HalOS.ColdChain.Api/Dockerfile
+    container_name: halos-coldchain
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      # ColdChainDb: servis kendi DB'sine (halos_coldchain) bağlanır (ADR-006).
+      ConnectionStrings__ColdChainDb: "Host=postgres;Port=5432;Database=halos_coldchain;Username=${POSTGRES_USER:-halos};Password=${POSTGRES_PASSWORD:-halos_dev_pw}"
+      # Event bus (ADR-006): TemperatureThresholdBreached yayını (tüketim yok).
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: "/"
+      RabbitMq__Username: ${RABBITMQ_USER:-halos}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:-halos_dev_pw}
+      Jwt__SigningKey: ${COLDCHAIN_JWT_SIGNING_KEY:-dev-only-signing-key-change-me-please-0123456789abcdef}
+    ports:
+      - "${COLDCHAIN_PORT:-5089}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - halos
+
   # Search (Arama) — S2.3 / docs/06 (Elasticsearch okuma modeli, ADR-007).
   #   docker compose --profile apps up -d search
   # Search, PartyRegistered + SaleCompleted'i RabbitMQ'dan tüketir (ADR-006) ve Elasticsearch'e
@@ -399,6 +431,7 @@ services:
       ReverseProxy__Clusters__finance__Destinations__primary__Address: http://finance:8080/
       ReverseProxy__Clusters__integration__Destinations__primary__Address: http://integration:8080/
       ReverseProxy__Clusters__inventory__Destinations__primary__Address: http://inventory:8080/
+      ReverseProxy__Clusters__coldchain__Destinations__primary__Address: http://coldchain:8080/
       ReverseProxy__Clusters__search__Destinations__primary__Address: http://search:8080/
       ReverseProxy__Clusters__notification__Destinations__primary__Address: http://notification:8080/
       ReverseProxy__Clusters__ai__Destinations__primary__Address: http://ai-gateway:8080/

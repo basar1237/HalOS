@@ -49,7 +49,7 @@ HalOS/
 │   └── HalOS.BuildingBlocks.Contracts   # servisler-arası event sözleşmeleri
 ├── services/                       # Bağlam başına .NET servisi (her biri 4-5 proje)
 │   ├── Identity · Party · Sales · Finance · Integration
-│   ├── Inventory · Search · Notification
+│   ├── Inventory · Search · Notification · ColdChain
 │   └── Gateway                     # API Gateway (BFF, YARP)
 ├── ai-gateway/                     # Python/FastAPI + Claude (HalOS.sln'de DEĞİL)
 ├── web/console/                    # Next.js 14 yönetim konsolu
@@ -98,7 +98,7 @@ Web konsolu Gateway'e (`NEXT_PUBLIC_API_BASE_URL=http://localhost:5000`) konuşu
 # Backend
 dotnet restore HalOS.sln
 dotnet build HalOS.sln
-dotnet test HalOS.sln            # 329 test
+dotnet test HalOS.sln            # 351 test
 
 # Bir servisi çalıştır (örn. Identity, http://localhost:5053)
 dotnet run --project services/Identity/HalOS.Identity.Api
@@ -132,7 +132,7 @@ yerel şema `src-tauri/src/lib.rs` (plugin-sql migration).
 ### Testler
 
 ```bash
-dotnet test HalOS.sln             # .NET: 329 test (9 servis)
+dotnet test HalOS.sln             # .NET: 351 test (10 servis)
 cd web/console && npm test        # Web konsol: Vitest birim testleri
 cd mobile && npm test             # Mobil: Vitest birim testleri
 cd desktop && npm test            # Masaüstü: 37 test (outbox/sync/money/conflict/format)
@@ -146,8 +146,10 @@ cd ai-gateway && pytest           # AI Gateway: pytest
 - **Faz 2:** Gelişmiş stok, Elasticsearch arama, AI Gateway, canlı SignalR dashboard, ürün
   kataloğu, API Gateway, web konsolu (okuma+yazma) — **KOD TAMAM**.
 - **Faz 3 (kısmi):** mobil patron uygulaması (React Native/Expo, ADR-004) — **KOD TAMAM**;
-  Hal Terminali masaüstü (Tauri + offline-first sync engine, ADR-005) — **KOD TAMAM**.
-- **Sıradaki:** gerçek GİB/HKS sandbox entegrasyonu (dış kimlik gerekir), soğuk zincir IoT.
+  Hal Terminali masaüstü (Tauri + offline-first sync engine, ADR-005) — **KOD TAMAM**;
+  Soğuk Zincir / IoT servisi (S3.1, docs/04 §6: sıcaklık eşiği aşımı → alarm event → canlı bildirim)
+  — **KOD TAMAM** (MQTT broker entegrasyonu ileride; şu an HTTP okuma ingest'i + eşik motoru).
+- **Sıradaki:** gerçek GİB/HKS sandbox entegrasyonu (dış kimlik gerekir), MQTT/EMQX cihaz köprüsü.
 
 ## Notlar
 

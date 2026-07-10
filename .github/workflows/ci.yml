@@ -42,7 +42,7 @@ jobs:
         run: dotnet build HalOS.sln --configuration Release --no-restore
 
       # --no-build keeps the tested binaries identical to the build step.
-      # 329 tests across 9 services (Postgres-integration tests skip without HALOS_TEST_POSTGRES).
+      # 351 tests across 10 services (Postgres-integration tests skip without HALOS_TEST_POSTGRES).
       - name: Test
         run: dotnet test HalOS.sln --configuration Release --no-build --verbosity normal
 

@@ -44,6 +44,7 @@ var rabbit = builder.Configuration.GetSection(RabbitMqOptions.SectionName)
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<SaleCompletedConsumer>();
+    x.AddConsumer<TemperatureThresholdBreachedConsumer>();
 
     x.UsingRabbitMq((context, cfg) =>
     {
