@@ -98,6 +98,9 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Acilista bekleyen migration'lari uygula (docs/04 §9 tek-komut dev; Migrate idempotent).
+HalOS.BuildingBlocks.Infrastructure.MigrationExtensions.ApplyMigrations<SalesDbContext>(app.Services);
+
 // Beklenmeyen istisnaları yakalar ve RFC 7807 ProblemDetails'e çevirir (docs/07 §10).
 app.UseExceptionHandler();
 
