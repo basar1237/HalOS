@@ -20,6 +20,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Stok & Depo', href: '/dashboard/stok' },
   { label: 'e-Belge & HKS', href: '/dashboard/e-belge' },
   { label: 'Soğuk Zincir', href: '/dashboard/soguk-zincir' },
+  { label: 'AI Önerileri', href: '/dashboard/ai-oneriler' },
   { label: 'Bildirimler', href: '/dashboard/bildirimler' },
 ];
 
