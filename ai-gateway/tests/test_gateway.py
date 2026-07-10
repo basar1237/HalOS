@@ -15,6 +15,7 @@ from app.config import Settings
 from app.llm import AnthropicLlmClient, StubLlmClient, build_llm_client
 from app.prompts import (
     build_accountant_prompt,
+    build_document_extraction_prompt,
     build_insights_prompt,
     build_order_draft_prompt,
 )
@@ -232,6 +233,54 @@ def test_order_draft_prompt_embeds_message_and_requires_approval():
     # Kontrol kullanıcıda: sipariş oluşturulmaz vurgusu.
     assert "OLUŞTURMAZSIN" in system or "onayla" in system.lower()
     assert "3 kasa elma" in user
+
+
+# --- (9) evrak okuma: /ai/read-document (docs/06 S3.6) ---------------------
+def test_read_document_without_token_is_401(client):
+    response = client.post("/ai/read-document", json={"documentText": "Fatura No: 123"})
+    assert response.status_code == 401
+
+
+def test_read_document_with_unauthorized_role_is_403(client):
+    token = make_token(role="Cashier")
+    response = client.post(
+        "/ai/read-document",
+        json={"documentText": "Fatura No: 123"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 403
+
+
+def test_read_document_with_accountant_returns_draft(client):
+    token = make_token(role="Manager")
+    response = client.post(
+        "/ai/read-document",
+        json={"documentText": "İrsaliye: 10 kasa domates, 5 kasa biber", "docType": "consignment"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["draft"]
+    assert body["model"] == "stub"
+    assert "taslak" in body["disclaimer"].lower()
+    assert "domates" in body["draft"]
+
+
+def test_read_document_empty_text_is_422(client):
+    token = make_token(role="Accountant")
+    response = client.post(
+        "/ai/read-document",
+        json={"documentText": ""},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 422
+
+
+def test_document_prompt_embeds_text_and_type_and_requires_approval():
+    system, user = build_document_extraction_prompt("Fatura No: 42, Domates 100 kg", "invoice")
+    assert "OLUŞTURMAZSIN" in system or "onayla" in system.lower()
+    assert "Fatura No: 42" in user
+    assert "invoice" in user  # tür ipucu gömülü
 
 
 def test_build_llm_client_with_key_returns_anthropic():

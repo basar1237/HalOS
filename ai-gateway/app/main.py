@@ -30,6 +30,7 @@ from .erp_client import ErpReadClient, ErpUnavailableError, HttpErpReadClient
 from .llm import LlmClient, StubLlmClient, build_llm_client
 from .prompts import (
     build_accountant_prompt,
+    build_document_extraction_prompt,
     build_insights_prompt,
     build_order_draft_prompt,
 )
@@ -119,6 +120,31 @@ class DraftOrderResponse(BaseModel):
     draft: str
     model: str
     disclaimer: str = "Bu bir taslaktır; kullanıcı onaylamadan sipariş oluşturulmaz."
+
+
+class ReadDocumentRequest(BaseModel):
+    """Belge metni (PDF/görselden çıkarılmış OCR metni) — taslak fatura/mal geliş çıkarılır."""
+
+    document_text: str = Field(..., min_length=1, description="Belgenin metin içeriği (OCR sonucu).")
+    doc_type: str | None = Field(default=None, description="Beklenen tür ipucu (invoice/consignment).")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _map_short_keys(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            mapping = {"documentText": "document_text", "docType": "doc_type"}
+            for short, full in mapping.items():
+                if short in data and full not in data:
+                    data[full] = data[short]
+        return data
+
+
+class ReadDocumentResponse(BaseModel):
+    """AI taslak belge (kullanıcı onayı gerektirir; kayıt OLUŞTURULMAZ)."""
+
+    draft: str
+    model: str
+    disclaimer: str = "Bu bir taslaktır; kullanıcı onaylamadan kayıt oluşturulmaz."
 
 
 class HealthResponse(BaseModel):
@@ -282,3 +308,27 @@ def draft_order(
         ) from exc
 
     return DraftOrderResponse(draft=draft_text, model=_model_name(llm))
+
+
+@app.post("/ai/read-document", response_model=ReadDocumentResponse, tags=["ai"])
+def read_document(
+    payload: ReadDocumentRequest,
+    principal: Principal = Depends(require_accountant),
+    llm: LlmClient = Depends(get_llm_client),
+) -> ReadDocumentResponse:
+    """Evrak okuma (docs/06 S3.6): belge metninden TASLAK fatura/mal geliş çıkarır.
+    Kontrol kullanıcıdadır — kayıt OLUŞTURULMAZ, yalnız taslak döner. ERP'ye yazmaz."""
+    system_prompt, user_prompt = build_document_extraction_prompt(
+        payload.document_text, payload.doc_type
+    )
+
+    try:
+        draft_text = llm.answer(system_prompt, user_prompt)
+    except Exception as exc:  # noqa: BLE001 — LLM sağlayıcı hatalarını anlamlı 502'ye çevir
+        logger.exception("LLM çağrısı başarısız (tenant=%s)", principal.tenant_id)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"AI modeline erişilemedi: {exc}",
+        ) from exc
+
+    return ReadDocumentResponse(draft=draft_text, model=_model_name(llm))
