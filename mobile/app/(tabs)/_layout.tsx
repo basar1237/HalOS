@@ -1,4 +1,4 @@
-// Sekme yerleşimi — patron için üç görünüm: Panel / Satışlar / Cari.
+// Sekme yerleşimi — patron için görünümler: Panel / Satışlar / Cari / Soğuk Zincir.
 import { Tabs } from 'expo-router';
 
 export default function TabsLayout() {
@@ -13,6 +13,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" options={{ title: 'Panel' }} />
       <Tabs.Screen name="satislar" options={{ title: 'Satışlar' }} />
       <Tabs.Screen name="cari" options={{ title: 'Cari' }} />
+      <Tabs.Screen name="soguk-zincir" options={{ title: 'Soğuk Zincir' }} />
     </Tabs>
   );
 }
