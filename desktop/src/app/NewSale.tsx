@@ -40,7 +40,9 @@ function emptyLine(): DraftLine {
 
 export function NewSale({ db, products, parties, online, onCommitted }: Props) {
   const buyers = useMemo(() => parties.filter((p) => p.partyType === 2), [parties]);
+  const producers = useMemo(() => parties.filter((p) => p.partyType === 1), [parties]);
   const [partyId, setPartyId] = useState('');
+  const [producerId, setProducerId] = useState('');
   const [saleTerm, setSaleTerm] = useState<SaleTerm>(1);
   const [isWithinMarket, setIsWithinMarket] = useState(true);
   const [lines, setLines] = useState<DraftLine[]>([emptyLine()]);
@@ -61,7 +63,7 @@ export function NewSale({ db, products, parties, online, onCommitted }: Props) {
     });
 
   const total = grossTotal(numericLines);
-  const canSubmit = !!db && !!partyId && numericLines.length > 0 && !busy;
+  const canSubmit = !!db && !!partyId && !!producerId && numericLines.length > 0 && !busy;
 
   function updateLine(i: number, patch: Partial<DraftLine>) {
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -88,6 +90,7 @@ export function NewSale({ db, products, parties, online, onCommitted }: Props) {
           operationId,
           partyId,
           partyName: party?.name ?? '',
+          producerPartyId: producerId,
           saleTerm,
           isWithinMarket,
           lines: numericLines,
@@ -100,6 +103,7 @@ export function NewSale({ db, products, parties, online, onCommitted }: Props) {
       );
       setLines([emptyLine()]);
       setPartyId('');
+      setProducerId('');
       setMsg(
         online
           ? 'Satış kaydedildi — buluta gönderiliyor.'
@@ -125,6 +129,17 @@ export function NewSale({ db, products, parties, online, onCommitted }: Props) {
             {buyers.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label>Müstahsil</label>
+          <select value={producerId} onChange={(e) => setProducerId(e.target.value)}>
+            <option value="">— seçin —</option>
+            {producers.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
               </option>
             ))}
           </select>

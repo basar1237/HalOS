@@ -38,6 +38,8 @@ export interface LocalSale {
   serverId?: string | null;
   partyId: string;
   partyName: string;
+  /** Müstahsil (Producer) referansı — hakediş bu tarafa; hal satışında zorunlu (docs/02 §3.3). */
+  producerPartyId: string;
   saleTerm: SaleTerm;
   isWithinMarket: boolean;
   lines: SaleLineInput[];

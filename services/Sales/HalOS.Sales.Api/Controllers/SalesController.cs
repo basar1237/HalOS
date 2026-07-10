@@ -6,6 +6,7 @@ using HalOS.Sales.Application.Features.CompleteSale;
 using HalOS.Sales.Application.Features.CreateSale;
 using HalOS.Sales.Application.Features.GetSale;
 using HalOS.Sales.Application.Features.ListSales;
+using HalOS.Sales.Application.Features.SyncOfflineSale;
 using HalOS.Sales.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -78,6 +79,37 @@ public sealed class SalesController : ControllerBase
     {
         var result = await _sender.Send(new CompleteSaleCommand(id), cancellationToken);
         return result.ToActionResult(this);
+    }
+
+    /// <summary>
+    /// Hal Terminali offline satışını senkronlar (docs/04 §5, ADR-005): create+satır+complete TEK
+    /// idempotent çağrıda. operationId ile çift senkron güvenli. Yetki: Patron/Yönetici/Kasiyer.
+    /// </summary>
+    [HttpPost("offline-sync")]
+    [Authorize(Policy = AuthorizationPolicies.SaleWrite)]
+    public async Task<IActionResult> SyncOffline(
+        SyncOfflineSaleRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new SyncOfflineSaleCommand(
+            request.BuyerPartyId,
+            request.ProducerPartyId,
+            request.ConsignmentId,
+            request.SoldAt,
+            request.IsWithinMarket,
+            request.OperationId,
+            request.Term ?? SaleTerm.Cash,
+            request.Lines
+                .Select(l => new OfflineSaleLine(l.ProductId, l.Quantity, l.Unit, l.UnitPrice))
+                .ToList());
+
+        var result = await _sender.Send(command, cancellationToken);
+        if (result.IsFailure)
+        {
+            return result.ToActionResult(this);
+        }
+
+        return CreatedAtAction(nameof(GetById), new { id = result.Value }, new { id = result.Value });
     }
 
     /// <summary>Satışı iptal eder (ters kayıt/flag; SİLİNMEZ — BK-9). Yetki kısıtlı: Patron/Yönetici.</summary>

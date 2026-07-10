@@ -190,14 +190,18 @@ export async function commitSaleOffline(
       sale.operationId,
       sale.operationId,
       seq,
+      // Payload backend sözleşmesine göre (SyncOfflineSaleRequest); ASP.NET JSON eşlemesi
+      // büyük/küçük harf duyarsızdır → camelCase alanlar PascalCase kayda eşlenir.
       JSON.stringify({
-        partyId: sale.partyId,
-        saleTerm: sale.saleTerm,
+        buyerPartyId: sale.partyId,
+        producerPartyId: sale.producerPartyId,
+        soldAt: sale.createdAt,
         isWithinMarket: sale.isWithinMarket,
+        term: sale.saleTerm,
         lines: sale.lines.map((l) => ({
           productId: l.productId,
           quantity: l.quantity,
-          unitCode: l.unitCode,
+          unit: l.unitCode,
           unitPrice: l.unitPrice,
         })),
       }),
