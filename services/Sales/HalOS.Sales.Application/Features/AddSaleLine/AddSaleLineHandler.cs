@@ -30,7 +30,11 @@ internal sealed class AddSaleLineHandler : ICommandHandler<AddSaleLineCommand>
             return result;
         }
 
-        _sales.Update(sale);
+        // sale İZLENEN (tracked) yüklenir; kökteki GrossAmount değişikliğini change tracking algılar.
+        // Yeni SaleLine client-generated Guid ID taşıdığından EF onu yanlışlıkla "Modified" sayar
+        // (UPDATE → 0 satır → DbUpdateConcurrencyException); bu yüzden yeni satırı açıkça "Added"
+        // olarak bildiririz. _sales.Update(sale) ÇAĞRILMAZ (tüm grafiği Modified işaretlerdi).
+        _sales.RegisterNew(sale.Lines.Last());
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success();

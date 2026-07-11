@@ -56,7 +56,17 @@ internal sealed class CompleteSaleHandler : ICommandHandler<CompleteSaleCommand>
             return completeResult;
         }
 
-        _sales.Update(sale);
+        // sale İZLENEN (tracked); Complete kökü değiştirir (Status/GrossAmount → change tracking
+        // algılar) ve yeni bağlı entity'ler üretir: Deduction'lar + CommissionCalculation +
+        // Settlement. Bunlar client-generated Guid ID taşıdığından EF yanlışlıkla "Modified" sanar
+        // (UPDATE → 0 satır → hata); bu yüzden her birini açıkça "Added" olarak bildiririz.
+        foreach (var deduction in sale.Deductions)
+        {
+            _sales.RegisterNew(deduction);
+        }
+
+        _sales.RegisterNew(sale.CommissionCalculation!);
+        _sales.RegisterNew(sale.Settlement!);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success();

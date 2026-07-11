@@ -80,6 +80,8 @@ internal sealed class SaleTransactionRepository : ISaleTransactionRepository
 
     public void Update(SaleTransaction sale) => _dbContext.SaleTransactions.Update(sale);
 
+    public void RegisterNew(object child) => _dbContext.Entry(child).State = EntityState.Added;
+
     public async Task<SalesSummaryReportDto> GetSalesSummaryAsync(
         DateTime fromUtc,
         DateTime toUtc,

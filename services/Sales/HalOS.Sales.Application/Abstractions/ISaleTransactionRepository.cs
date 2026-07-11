@@ -34,6 +34,16 @@ public interface ISaleTransactionRepository
     void Update(SaleTransaction sale);
 
     /// <summary>
+    /// İzlenen (tracked) bir aggregate'e domain metoduyla EKLENEN yeni bağlı entity'yi (satır,
+    /// kesinti, komisyon, hakediş) EF'e açıkça "Added" olarak bildirir. Gerekli, çünkü bu bağlı
+    /// entity'lerin birincil anahtarı client-generated (Guid) olduğundan EF, navigasyondan
+    /// keşfettiği dolu-anahtarlı yeni çocuğu yanlışlıkla "Modified" (UPDATE → 0 satır → hata)
+    /// sayar. Yeni aggregate'ler için <see cref="Add"/> kullanılır; bu yalnız mevcut aggregate'e
+    /// çocuk eklerken gereklidir.
+    /// </summary>
+    void RegisterNew(object child);
+
+    /// <summary>
     /// Satış özet raporu (docs/03 M10 "raporlar (okuma)"). Verilen [from, to] aralığındaki (SoldAt)
     /// TAMAMLANMIŞ (Completed) satışların adet/brüt/komisyon/kesinti(KDV hariç)/net toplamları.
     /// AsNoTracking, tenant filtreli (BK-8). Yeni tablo YOK — mevcut veriden agregasyon.
