@@ -11,7 +11,7 @@ import { EBelge } from './tabs/EBelge';
 import { Raporlar } from './tabs/Raporlar';
 import { Ai } from './tabs/Ai';
 import { Cek } from './tabs/Cek';
-import { Placeholder } from './tabs/Placeholder';
+import { Kasa } from './tabs/Kasa';
 
 interface Props {
   userName?: string;
@@ -92,18 +92,7 @@ export function Terminal({ userName, onLogout }: Props) {
           {tab === 'rapor' && <Raporlar />}
           {tab === 'ai' && <Ai />}
           {tab === 'cek' && <Cek />}
-          {tab === 'kasa' && (
-            <Placeholder
-              title="Kasa"
-              faz="Faz C"
-              features={[
-                'Çoklu kasa (ticari / rehin ayrı)',
-                'Kasa tahsil / tediye fişleri',
-                'Kasalar arası virman',
-                'Banka + POS tahsilat bağlantısı',
-              ]}
-            />
-          )}
+          {tab === 'kasa' && <Kasa />}
         </main>
       </div>
     </div>

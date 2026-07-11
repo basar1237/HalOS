@@ -28,6 +28,10 @@ public sealed class FinanceDbContext : TenantDbContextBase, IUnitOfWork
 
     public DbSet<Cheque> Cheques => Set<Cheque>();
 
+    public DbSet<CashRegister> CashRegisters => Set<CashRegister>();
+
+    public DbSet<CashMovement> CashMovements => Set<CashMovement>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

@@ -36,6 +36,7 @@ public static class DependencyInjection
 
         services.AddScoped<ICurrentAccountRepository, CurrentAccountRepository>();
         services.AddScoped<IChequeRepository, ChequeRepository>();
+        services.AddScoped<ICashRegisterRepository, CashRegisterRepository>();
 
         return services;
     }
