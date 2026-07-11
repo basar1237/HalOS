@@ -31,6 +31,8 @@ ilgili modül geliştirilirken **just-in-time** yazılacaktır.
 | 06 | [Yol Haritası ve Faz Planı](./06-Yol-Haritasi-ve-Faz-Plani.md) | Fazlar, sprint iskeleti | Proje yönetimi, geliştirici |
 | 07 | [Claude Code Geliştirme Kuralları](./07-Claude-Code-Gelistirme-Kurallari.md) | Kod standardı, sınırlar | **Her geliştirici / AI ajan** |
 | 09 | [Kod Denetimi ve Rakip Boşluk Analizi](./09-Kod-Denetimi-ve-Rakip-Bosluk-Analizi.md) | Doğru/eksik/yanlış, öncelik | Ürün, mimar, geliştirici |
+| 10 | [Rakip Sistem Analizi](./10-Rakip-Sistem-Analizi.md) | OnurHal/Atlas/MacVEG arayüz+teknoloji | Ürün, mimar |
+| 11 | [Ürün Mimarisi: Birleşik Uygulama ve Tam Kapsam](./11-Urun-Mimarisi-Birlesik-Uygulama-ve-Tam-Kapsam.md) | **MASTER PLAN** — tek masaüstü uygulaması, tam kapsam, yol haritası | **Herkes** |
 
 > **İlk kez okuyorsan:** Önce **02 (Domain Model)** → sonra **03 (PRD)** → sonra **04 (Mimari)**.
 > Kod yazacaksan **07 (Geliştirme Kuralları)** zorunlu okumadır.
