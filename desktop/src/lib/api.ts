@@ -115,7 +115,24 @@ export const gatewayApi = {
     const items = Array.isArray(res) ? res : (res.items ?? []);
     return items.map(mapParty);
   },
+
+  /** Son satışlar (liste görünümü için). Party ID'leri çağıran tarafta isme çevrilir. */
+  async pullSales(): Promise<RawSaleListItem[]> {
+    const res = await request<{ items?: RawSaleListItem[] } | RawSaleListItem[]>(
+      '/api/sales/sales?page=1&pageSize=50',
+    );
+    return Array.isArray(res) ? res : (res.items ?? []);
+  },
 };
+
+export interface RawSaleListItem {
+  id: string;
+  buyerPartyId: string;
+  grossAmount: number;
+  term: number;
+  status: number;
+  soldAt: string;
+}
 
 interface RawProduct {
   id: string;
@@ -126,7 +143,9 @@ interface RawProduct {
 }
 interface RawParty {
   id: string;
-  name: string;
+  displayName?: string;
+  name?: string;
+  roles?: number[];
   type?: number;
   partyType?: number;
   rowVersion?: string;
@@ -144,10 +163,17 @@ function mapProduct(p: RawProduct): CachedProduct {
 }
 
 function mapParty(p: RawParty): CachedParty {
+  // Party servisi displayName + roles[] döner. Rol → partyType (Producer=1 / Buyer=2).
+  const roles = p.roles ?? [];
+  const partyType = (roles.includes(1)
+    ? 1
+    : roles.includes(2)
+      ? 2
+      : (p.partyType ?? p.type ?? 2)) as CachedParty['partyType'];
   return {
     id: p.id,
-    name: p.name,
-    partyType: ((p.partyType ?? p.type) ?? 2) as CachedParty['partyType'],
+    name: p.displayName ?? p.name ?? '',
+    partyType,
     rowVersion: p.rowVersion ?? null,
     updatedAt: p.updatedAt ?? '',
   };

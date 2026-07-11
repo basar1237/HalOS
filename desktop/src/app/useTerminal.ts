@@ -80,6 +80,44 @@ export function useTerminal(): TerminalState {
     });
   }, [db, refresh, sync]);
 
+  // Online ise ana veriyi (alıcı/müstahsil/ürün/son satışlar) doğrudan API'den çek.
+  // Yerel SQLite cache boş olsa da (ör. tarayıcı modu) terminal kullanılabilir kalır.
+  useEffect(() => {
+    if (!online) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [prts, prods, rawSales] = await Promise.all([
+          gatewayApi.pullParties(),
+          gatewayApi.pullProducts(),
+          gatewayApi.pullSales(),
+        ]);
+        if (cancelled) return;
+        setParties(prts);
+        setProducts(prods);
+        const nameOf = new Map(prts.map((p) => [p.id, p.name]));
+        const statusLabel: Record<number, string> = { 1: 'draft', 2: 'completed', 3: 'cancelled' };
+        setSales(
+          rawSales.map((s) => ({
+            operationId: s.id,
+            serverId: s.id,
+            partyName: nameOf.get(s.buyerPartyId) ?? '—',
+            grossTotal: s.grossAmount,
+            saleTerm: s.term,
+            status: statusLabel[s.status] ?? 'completed',
+            syncStatus: 'synced',
+            createdAt: s.soldAt,
+          })),
+        );
+      } catch (e) {
+        console.warn('API ana veri çekilemedi (offline cache kullanılacak):', e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [online]);
+
   // Online/offline değişimini dinle; online olunca otomatik senkronla.
   useEffect(() => {
     const goOnline = () => {

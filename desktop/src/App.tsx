@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Login } from './app/Login';
 import { Terminal } from './app/Terminal';
 import { setAccessToken } from './lib/api';
+import { applyTheme, getTheme } from './lib/theme';
 
 interface Session {
   token: string;
@@ -14,6 +15,11 @@ const STORAGE_KEY = 'halos.terminal.session';
 export function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
+
+  // Tema uygula (varsayılan beyaz).
+  useEffect(() => {
+    applyTheme(getTheme());
+  }, []);
 
   // Oturum kurtarma: token yerelde saklanır (offline'da da terminal açılabilsin).
   useEffect(() => {
