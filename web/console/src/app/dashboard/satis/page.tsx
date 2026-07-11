@@ -4,12 +4,13 @@
 // "Yeni Satış" formu satışı uçtan uca oluşturup tamamlar (kesinti/hakediş motoru).
 
 import Link from 'next/link';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { PagedTable, type Column } from '@/components/paged-table';
 import { label, shortId } from '@/features/common/labels';
 import { SALE_STATUS_LABEL } from '@/features/sales/sales-api';
 import { usePagedList } from '@/features/common/use-paged-list';
+import { usePartyOptions } from '@/features/parties/use-party-options';
 import type { Sale } from '@/shared/entities';
 
 const TRY = new Intl.NumberFormat('tr-TR', {
@@ -28,29 +29,6 @@ function statusBadge(status: number): string {
   return 'badge'; // Taslak
 }
 
-const COLUMNS: Column<Sale>[] = [
-  { header: 'Tarih', cell: (s) => formatDate(s.soldAt) },
-  { header: 'Alıcı', cell: (s) => shortId(s.buyerPartyId) },
-  { header: 'Müstahsil', cell: (s) => shortId(s.producerPartyId) },
-  { header: 'Tutar', align: 'num', cell: (s) => TRY.format(s.grossAmount) },
-  {
-    header: 'Durum',
-    cell: (s) => (
-      <span className={statusBadge(s.status)}>
-        {label(SALE_STATUS_LABEL, s.status)}
-      </span>
-    ),
-  },
-  {
-    header: '',
-    cell: (s) => (
-      <Link href={`/dashboard/satis/${s.id}`} className="row-link">
-        Detay
-      </Link>
-    ),
-  },
-];
-
 export default function SalesPage() {
   const buildPath = useCallback(
     (page: number, pageSize: number) =>
@@ -58,6 +36,37 @@ export default function SalesPage() {
     [],
   );
   const state = usePagedList<Sale>(buildPath);
+
+  // Taraf ID'lerini isimlere çevirmek için (mikroservis: Satış yalnız ID tutar, isim Party'de).
+  const { options: parties } = usePartyOptions();
+  const partyName = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of parties) m.set(p.id, p.displayName);
+    return (id: string) => m.get(id) ?? shortId(id);
+  }, [parties]);
+
+  const COLUMNS: Column<Sale>[] = [
+    { header: 'Tarih', cell: (s) => formatDate(s.soldAt) },
+    { header: 'Alıcı', cell: (s) => partyName(s.buyerPartyId) },
+    { header: 'Müstahsil', cell: (s) => partyName(s.producerPartyId) },
+    { header: 'Tutar', align: 'num', cell: (s) => TRY.format(s.grossAmount) },
+    {
+      header: 'Durum',
+      cell: (s) => (
+        <span className={statusBadge(s.status)}>
+          {label(SALE_STATUS_LABEL, s.status)}
+        </span>
+      ),
+    },
+    {
+      header: '',
+      cell: (s) => (
+        <Link href={`/dashboard/satis/${s.id}`} className="row-link">
+          Detay
+        </Link>
+      ),
+    },
+  ];
 
   return (
     <div>
