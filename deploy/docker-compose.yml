@@ -474,12 +474,20 @@ services:
       dockerfile: Dockerfile
     container_name: halos-ai-gateway
     restart: unless-stopped
+    # Container'ın host makinedeki Ollama'ya (localhost:11434) erişmesi için.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       # Ortam: dev'de repoya işlenmiş dev imza anahtarı kabul edilir (config.validate_signing_key).
       APP_ENV: ${ASPNETCORE_ENVIRONMENT:-Development}
       # Anthropic anahtarı ortamdan geçirilir; boş bırakılırsa Stub LLM devreye girer.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-6}
+      # LLM sağlayıcı: yerel Ollama (bedava/çevrimdışı, veri makinede kalır). Türkçe için aya-expanse:8b.
+      # Container host'a host.docker.internal ile erişir (aşağıda extra_hosts).
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-aya-expanse:8b}
       # JWT imza anahtarı ERP servisleriyle AYNI olmalı (docs/04 §7).
       JWT__SIGNING_KEY: ${AI_GATEWAY_JWT_SIGNING_KEY:-dev-only-signing-key-change-me-please-0123456789abcdef}
       JWT__ISSUER: HalOS.Identity

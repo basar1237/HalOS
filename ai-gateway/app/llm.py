@@ -65,6 +65,44 @@ class AnthropicLlmClient:
         return "".join(parts).strip()
 
 
+class OllamaLlmClient:
+    """Yerel Ollama (llama/aya vb.) tabanlı LLM istemcisi.
+
+    Bedava, çevrimdışı çalışır ve veri makineden çıkmaz (hal mali verisi için mahremiyet
+    avantajı). Ollama'nın yerel /api/chat ucunu httpx ile çağırır. Türkçe için aya-expanse:8b
+    önerilir. Claude'a göre kalite daha düşüktür; kalite gerektiren üretim işlerinde Anthropic tercih edilir.
+    """
+
+    def __init__(self, base_url: str, model: str, timeout_s: float = 120.0) -> None:
+        self._base_url = base_url.rstrip("/")
+        self._model = model
+        self._timeout = timeout_s
+
+    @property
+    def model(self) -> str:
+        return self._model
+
+    def answer(self, system: str, user: str) -> str:
+        import httpx
+
+        response = httpx.post(
+            f"{self._base_url}/api/chat",
+            json={
+                "model": self._model,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                "stream": False,
+                "options": {"temperature": 0.2},
+            },
+            timeout=self._timeout,
+        )
+        response.raise_for_status()
+        data = response.json()
+        return (data.get("message", {}).get("content") or "").strip()
+
+
 class StubLlmClient:
     """Deterministik, dış çağrı içermeyen Türkçe özet üreten yedek istemci.
 
@@ -84,16 +122,47 @@ class StubLlmClient:
         )
 
 
-def build_llm_client(settings: Settings) -> LlmClient:
-    """Anahtar varsa Anthropic, yoksa Stub istemcisi döndürür (kararı log'lar)."""
-    if settings.has_anthropic_key:
-        logger.info("Anthropic API anahtarı bulundu; Claude (%s) kullanılacak.", settings.anthropic_model)
-        return AnthropicLlmClient(
-            api_key=settings.anthropic_api_key,  # type: ignore[arg-type]
-            model=settings.anthropic_model,
-        )
-    logger.warning(
-        "Anthropic API anahtarı yok; StubLlmClient kullanılacak "
-        "(servis anahtarsız çalışır, gerçek LLM çağrısı YAPILMAZ)."
+def _build_ollama(settings: Settings) -> LlmClient:
+    logger.info(
+        "Ollama kullanılacak: %s @ %s (yerel/çevrimdışı LLM).",
+        settings.ollama_model,
+        settings.ollama_base_url,
     )
+    return OllamaLlmClient(base_url=settings.ollama_base_url, model=settings.ollama_model)
+
+
+def _build_anthropic(settings: Settings) -> LlmClient:
+    logger.info("Anthropic Claude (%s) kullanılacak.", settings.anthropic_model)
+    return AnthropicLlmClient(
+        api_key=settings.anthropic_api_key,  # type: ignore[arg-type]
+        model=settings.anthropic_model,
+    )
+
+
+def build_llm_client(settings: Settings) -> LlmClient:
+    """LLM_PROVIDER ayarına göre istemci seçer (kararı log'lar).
+
+    - ollama    → yerel Ollama (bedava/çevrimdışı)
+    - anthropic → Claude (anahtar gerekir; yoksa Stub)
+    - stub      → sahte
+    - auto      → anahtar varsa Claude, yoksa Ollama, o da yoksa Stub
+    """
+    provider = (settings.llm_provider or "auto").strip().lower()
+
+    if provider == "ollama":
+        return _build_ollama(settings)
+    if provider == "anthropic":
+        if settings.has_anthropic_key:
+            return _build_anthropic(settings)
+        logger.warning("LLM_PROVIDER=anthropic ama anahtar yok; Stub kullanılacak.")
+        return StubLlmClient()
+    if provider == "stub":
+        return StubLlmClient()
+
+    # auto
+    if settings.has_anthropic_key:
+        return _build_anthropic(settings)
+    if settings.ollama_base_url:
+        return _build_ollama(settings)
+    logger.warning("LLM sağlayıcı çözülemedi; Stub kullanılacak.")
     return StubLlmClient()

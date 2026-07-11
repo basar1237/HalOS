@@ -123,6 +123,25 @@ class Settings(BaseSettings):
         description="Varsayılan Claude modeli (Messages API).",
     )
 
+    # --- LLM sağlayıcı seçimi ---
+    # auto: Anthropic anahtarı varsa Claude, yoksa (ollama ayarlıysa) Ollama, o da yoksa Stub.
+    # ollama: yerel Ollama (bedava/çevrimdışı, veri makinede kalır). anthropic: Claude. stub: sahte.
+    llm_provider: str = Field(
+        default="auto",
+        alias="LLM_PROVIDER",
+        description="LLM sağlayıcı: auto | anthropic | ollama | stub.",
+    )
+    ollama_base_url: str = Field(
+        default="http://localhost:11434",
+        alias="OLLAMA_BASE_URL",
+        description="Yerel Ollama sunucu adresi. Docker içinden host: http://host.docker.internal:11434",
+    )
+    ollama_model: str = Field(
+        default="aya-expanse:8b",
+        alias="OLLAMA_MODEL",
+        description="Ollama modeli (Türkçe için aya-expanse:8b önerilir).",
+    )
+
     # --- Alt ayar grupları ---
     jwt: JwtSettings = Field(default_factory=JwtSettings)
     erp: ErpSettings = Field(default_factory=ErpSettings)
