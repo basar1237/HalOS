@@ -15,6 +15,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: 'Kontrol Paneli', href: '/dashboard' },
   { label: 'Satış & Komisyon', href: '/dashboard/satis' },
+  { label: 'Hızlı Satış', href: '/dashboard/satis/hizli' },
   { label: 'Cari & Finans', href: '/dashboard/finans' },
   { label: 'Taraflar', href: '/dashboard/taraflar' },
   { label: 'Stok & Depo', href: '/dashboard/stok' },
@@ -29,7 +30,7 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div className="sidebar__brand">HalOS</div>
+      <div className="sidebar__brand">Halos<span style={{ opacity: 0.7 }}>ERP</span></div>
       <nav className="sidebar__nav">
         {NAV_ITEMS.map((item) => {
           const isActive =

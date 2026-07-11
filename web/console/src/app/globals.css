@@ -796,3 +796,229 @@ a {
 .row-link:hover {
   text-decoration: underline;
 }
+
+/* ===========================================================================
+   Hızlı Satış — Excel-hızında, klavye-navigasyonlu satış giriş gridi (prototip)
+   =========================================================================== */
+.fs-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.fs-head {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.fs-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fs-field label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--color-text-muted);
+}
+
+.fs-field input,
+.fs-field select {
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  padding: 8px 10px;
+  font-size: 13px;
+  background: var(--color-surface);
+}
+
+.fs-field input:focus,
+.fs-field select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.14);
+}
+
+.fs-hint {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.fs-hint kbd {
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 1px 6px;
+  margin-right: 4px;
+  color: var(--color-text);
+}
+
+/* --- Grid --- */
+.fs-grid-wrap {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.fs-grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.fs-grid thead th {
+  position: sticky;
+  top: 0;
+  background: #eef2f5;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  text-align: left;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+}
+
+.fs-grid thead th:last-child {
+  border-right: none;
+}
+
+.fs-grid td {
+  border-bottom: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+  padding: 0;
+  height: 38px;
+}
+
+.fs-grid td:last-child {
+  border-right: none;
+}
+
+.fs-grid tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.fs-rownum {
+  width: 34px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  background: var(--color-bg);
+  font-size: 12px;
+}
+
+.fs-cell {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  padding: 0 10px;
+  font-size: 13px;
+  color: var(--color-text);
+  font-family: inherit;
+}
+
+.fs-cell:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  background: #f0fdf4;
+}
+
+.fs-cell--num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.fs-cell--readonly {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  padding: 0 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+  background: #fafbfc;
+}
+
+.fs-del {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  width: 100%;
+  height: 100%;
+  font-size: 13px;
+}
+
+.fs-del:hover {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+/* --- Alt toplam çubuğu --- */
+.fs-totals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 1px;
+  background: var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.fs-total {
+  flex: 1 1 130px;
+  background: var(--color-surface);
+  padding: 12px 16px;
+}
+
+.fs-total__label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--color-text-muted);
+  margin: 0 0 4px;
+}
+
+.fs-total__value {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.fs-total--net {
+  background: var(--color-primary);
+}
+
+.fs-total--net .fs-total__label {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.fs-total--net .fs-total__value {
+  color: #fff;
+}
+
+.fs-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
