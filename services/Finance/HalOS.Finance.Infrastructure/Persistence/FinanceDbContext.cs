@@ -26,6 +26,8 @@ public sealed class FinanceDbContext : TenantDbContextBase, IUnitOfWork
 
     public DbSet<AccountEntry> AccountEntries => Set<AccountEntry>();
 
+    public DbSet<Cheque> Cheques => Set<Cheque>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

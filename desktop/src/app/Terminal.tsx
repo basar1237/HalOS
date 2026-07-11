@@ -10,6 +10,7 @@ import { Stok } from './tabs/Stok';
 import { EBelge } from './tabs/EBelge';
 import { Raporlar } from './tabs/Raporlar';
 import { Ai } from './tabs/Ai';
+import { Cek } from './tabs/Cek';
 import { Placeholder } from './tabs/Placeholder';
 
 interface Props {
@@ -90,18 +91,7 @@ export function Terminal({ userName, onLogout }: Props) {
           {tab === 'ebelge' && <EBelge />}
           {tab === 'rapor' && <Raporlar />}
           {tab === 'ai' && <Ai />}
-          {tab === 'cek' && (
-            <Placeholder
-              title="Çek / Senet"
-              faz="Faz C"
-              features={[
-                'Çek/senet portföyü (alınan / verilen)',
-                'Vade, banka, seri no, tutar takibi',
-                'Tahsile ver · tahsil edildi · karşılıksız · ciro',
-                'Banka/kasa bağlantılı; çek-senet dekontu',
-              ]}
-            />
-          )}
+          {tab === 'cek' && <Cek />}
           {tab === 'kasa' && (
             <Placeholder
               title="Kasa"

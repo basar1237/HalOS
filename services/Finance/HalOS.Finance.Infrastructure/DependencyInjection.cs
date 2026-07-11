@@ -35,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<IAuditLogSink, AuditLogSink<FinanceDbContext>>();
 
         services.AddScoped<ICurrentAccountRepository, CurrentAccountRepository>();
+        services.AddScoped<IChequeRepository, ChequeRepository>();
 
         return services;
     }
