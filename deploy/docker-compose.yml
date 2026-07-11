@@ -511,6 +511,9 @@ services:
       ASPNETCORE_URLS: http://+:8080
       # Tarayıcı konsolun origin'i (CORS). Üretimde gerçek alan adına sıkılaştırılır.
       Cors__AllowedOrigins__0: ${GATEWAY_CORS_ORIGIN:-http://localhost:3000}
+      # Hal Terminali (Tauri/Vite) ve alternatif konsol portu (dev).
+      Cors__AllowedOrigins__1: http://localhost:1420
+      Cors__AllowedOrigins__2: http://localhost:3001
       # Development appsettings localhost destinasyonları yükler; compose ağında servis adlarına
       # (http://sales:8080) override edilir — böylece Development imajı da doğru hedefe gider.
       ReverseProxy__Clusters__identity__Destinations__primary__Address: http://identity:8080/

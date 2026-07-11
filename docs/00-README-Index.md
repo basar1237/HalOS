@@ -30,6 +30,7 @@ ilgili modül geliştirilirken **just-in-time** yazılacaktır.
 | 05 | [Veritabanı Çekirdek Şema](./05-Veritabani-Cekirdek-Sema.md) | Tablolar, ilişkiler, indeks | Backend, veri |
 | 06 | [Yol Haritası ve Faz Planı](./06-Yol-Haritasi-ve-Faz-Plani.md) | Fazlar, sprint iskeleti | Proje yönetimi, geliştirici |
 | 07 | [Claude Code Geliştirme Kuralları](./07-Claude-Code-Gelistirme-Kurallari.md) | Kod standardı, sınırlar | **Her geliştirici / AI ajan** |
+| 09 | [Kod Denetimi ve Rakip Boşluk Analizi](./09-Kod-Denetimi-ve-Rakip-Bosluk-Analizi.md) | Doğru/eksik/yanlış, öncelik | Ürün, mimar, geliştirici |
 
 > **İlk kez okuyorsan:** Önce **02 (Domain Model)** → sonra **03 (PRD)** → sonra **04 (Mimari)**.
 > Kod yazacaksan **07 (Geliştirme Kuralları)** zorunlu okumadır.
@@ -81,3 +82,4 @@ tanımlanmıştır. Yeni terim uydurmak yasaktır — bkz. 07.
 | 05 Veritabanı | v0.1 | Taslak | 2026-07-07 |
 | 06 Yol Haritası | v0.1 | Taslak | 2026-07-07 |
 | 07 Claude Kuralları | v0.1 | Taslak | 2026-07-07 |
+| 09 Kod Denetimi | v0.1 | Taslak | 2026-07-11 |
