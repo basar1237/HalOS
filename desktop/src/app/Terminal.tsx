@@ -12,6 +12,7 @@ import { Raporlar } from './tabs/Raporlar';
 import { Ai } from './tabs/Ai';
 import { Cek } from './tabs/Cek';
 import { Kasa } from './tabs/Kasa';
+import { Ajanda } from './tabs/Ajanda';
 
 interface Props {
   userName?: string;
@@ -28,6 +29,7 @@ const TABS = [
   { key: 'rapor', label: 'Raporlar', icon: '📈' },
   { key: 'cek', label: 'Çek / Senet', icon: '💠' },
   { key: 'kasa', label: 'Kasa', icon: '💰' },
+  { key: 'ajanda', label: 'Ajanda', icon: '🔔' },
   { key: 'ai', label: 'AI Muhasebeci', icon: '🤖' },
 ] as const;
 
@@ -93,6 +95,7 @@ export function Terminal({ userName, onLogout }: Props) {
           {tab === 'ai' && <Ai />}
           {tab === 'cek' && <Cek />}
           {tab === 'kasa' && <Kasa />}
+          {tab === 'ajanda' && <Ajanda />}
         </main>
       </div>
     </div>
