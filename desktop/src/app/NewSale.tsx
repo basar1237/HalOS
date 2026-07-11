@@ -2,7 +2,6 @@ import { useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { commitSaleOffline, maxSeqForAggregate, type LocalDb } from '../lib/db';
 import { formatTRY } from '../lib/format';
 import { newOperationId } from '../lib/id';
-import { grossTotal } from '../lib/money';
 import type {
   CachedParty,
   CachedProduct,
@@ -11,15 +10,7 @@ import type {
   UnitOfMeasure,
 } from '../lib/types';
 
-const UNIT_LABELS: Record<UnitOfMeasure, string> = {
-  1: 'kg',
-  2: 'adet',
-  3: 'kasa',
-  4: 'bağ',
-  5: 'demet',
-};
-
-// Tahmini kesinti oranları (kesin tutar sunucuda hesaplanır).
+// Oranlar tahmini; kesin komisyon/stopaj/rüsum sunucuda hesaplanır.
 const RATES = { komisyon: 0.08, stopaj: 0.02, bagkur: 0.01, rusum: 0.01 };
 
 interface Props {
@@ -30,14 +21,16 @@ interface Props {
   onCommitted: () => void | Promise<void>;
 }
 
+// OnurHal düzeni: Kap (kasa), Brüt (daralı kg), Dara (kg), Net (safi kg), Fiyat (₺/kg).
 interface Row {
   productId: string;
   productName: string;
-  quantity: string;
-  unitCode: UnitOfMeasure;
-  unitPrice: string;
+  kap: string;    // kasa/kap adedi
+  brut: string;   // daralı (brüt) kg
+  dara: string;   // dara kg
+  price: string;  // birim fiyat (net kg başına, net yoksa kap başına)
 }
-const emptyRow = (): Row => ({ productId: '', productName: '', quantity: '', unitCode: 3, unitPrice: '' });
+const emptyRow = (): Row => ({ productId: '', productName: '', kap: '', brut: '', dara: '', price: '' });
 
 function round2(n: number): number {
   const x = n * 100;
@@ -45,6 +38,20 @@ function round2(n: number): number {
   const d = x - f;
   const r = d > 0.5 ? f + 1 : d < 0.5 ? f : f % 2 === 0 ? f : f + 1;
   return r / 100;
+}
+// Satır net kg (safi) = brüt - dara (negatif olmaz).
+function netKg(r: Row): number {
+  const b = Number(r.brut) || 0;
+  const d = Number(r.dara) || 0;
+  return Math.max(0, b - d);
+}
+// Satır tutarı: net kg varsa net×fiyat, yoksa kap×fiyat (kasa bazlı satış).
+function lineTotal(r: Row): number {
+  const net = netKg(r);
+  const price = Number(r.price) || 0;
+  if (net > 0) return round2(net * price);
+  const kap = Number(r.kap) || 0;
+  return round2(kap * price);
 }
 
 export function NewSale({ db, products, parties, online, onCommitted }: Props) {
@@ -55,6 +62,8 @@ export function NewSale({ db, products, parties, online, onCommitted }: Props) {
   const [saleTerm, setSaleTerm] = useState<SaleTerm>(1);
   const [isWithinMarket, setIsWithinMarket] = useState(true);
   const [rows, setRows] = useState<Row[]>([emptyRow(), emptyRow(), emptyRow()]);
+  const [hamaliye, setHamaliye] = useState('');
+  const [nakliye, setNakliye] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -77,7 +86,7 @@ export function NewSale({ db, products, parties, online, onCommitted }: Props) {
 
   function onProductInput(i: number, value: string) {
     const match = products.find((p) => p.name.toLowerCase() === value.toLowerCase());
-    if (match) update(i, { productId: match.id, productName: match.name, unitCode: match.defaultUnit });
+    if (match) update(i, { productId: match.id, productName: match.name });
     else update(i, { productId: '', productName: value });
   }
 
@@ -95,34 +104,35 @@ export function NewSale({ db, products, parties, online, onCommitted }: Props) {
   }
 
   const numericLines: SaleLineInput[] = rows
-    .filter((l) => l.productId && Number(l.quantity) > 0 && Number(l.unitPrice) > 0)
-    .map((l) => ({
-      productId: l.productId,
-      productName: l.productName,
-      quantity: Number(l.quantity),
-      unitCode: l.unitCode,
-      unitPrice: Number(l.unitPrice),
-    }));
+    .filter((r) => r.productId && lineTotal(r) > 0)
+    .map((r) => {
+      const net = netKg(r);
+      const useWeight = net > 0;
+      return {
+        productId: r.productId,
+        productName: r.productName,
+        quantity: useWeight ? net : (Number(r.kap) || 0),
+        unitCode: (useWeight ? 1 : 3) as UnitOfMeasure, // 1=kg, 3=kasa
+        unitPrice: Number(r.price) || 0,
+      };
+    });
 
   const calc = useMemo(() => {
-    const lineTotals = rows.map((r) => round2((Number(r.quantity) || 0) * (Number(r.unitPrice) || 0)));
-    const brut = round2(lineTotals.reduce((a, b) => a + b, 0));
-    const komisyon = round2(brut * RATES.komisyon);
+    const totals = rows.map(lineTotal);
+    const brut = round2(totals.reduce((a, b) => a + b, 0));
+    const masraf = round2((Number(hamaliye) || 0) + (Number(nakliye) || 0));
     const kesinti = round2(brut * (RATES.komisyon + RATES.stopaj + RATES.bagkur + RATES.rusum));
-    return { lineTotals, brut, komisyon, net: round2(brut - kesinti) };
-  }, [rows]);
+    const komisyon = round2(brut * RATES.komisyon);
+    const net = round2(brut - kesinti - masraf);
+    const netKgTop = round2(rows.reduce((a, r) => a + netKg(r), 0));
+    return { totals, brut, komisyon, masraf, net, netKgTop };
+  }, [rows, hamaliye, nakliye]);
 
   const canSubmit = !!db && !!partyId && !!producerId && numericLines.length > 0 && !busy;
 
   async function submit() {
-    if (!db || !partyId || !producerId) {
-      setMsg('Alıcı ve müstahsil seçilmelidir.');
-      return;
-    }
-    if (numericLines.length === 0) {
-      setMsg('En az bir geçerli satır girin (ürün + miktar + fiyat).');
-      return;
-    }
+    if (!db || !partyId || !producerId) { setMsg('Alıcı ve müstahsil seçilmelidir.'); return; }
+    if (numericLines.length === 0) { setMsg('En az bir geçerli satır girin (ürün + net/kap + fiyat).'); return; }
     setBusy(true);
     setMsg(null);
     try {
@@ -130,26 +140,18 @@ export function NewSale({ db, products, parties, online, onCommitted }: Props) {
       const party = buyers.find((b) => b.id === partyId);
       const createdAt = new Date().toISOString();
       const seq = (await maxSeqForAggregate(db, operationId)) + 1;
+      const grossTotal = calc.brut;
       await commitSaleOffline(
         db,
         {
-          operationId,
-          partyId,
-          partyName: party?.name ?? '',
-          producerPartyId: producerId,
-          saleTerm,
-          isWithinMarket,
-          lines: numericLines,
-          grossTotal: grossTotal(numericLines),
-          status: 'completed',
-          syncStatus: 'pending',
-          createdAt,
+          operationId, partyId, partyName: party?.name ?? '', producerPartyId: producerId,
+          saleTerm, isWithinMarket, lines: numericLines, grossTotal,
+          status: 'completed', syncStatus: 'pending', createdAt,
         },
         seq,
       );
       setRows([emptyRow(), emptyRow(), emptyRow()]);
-      setPartyId('');
-      setProducerId('');
+      setPartyId(''); setProducerId(''); setHamaliye(''); setNakliye('');
       setMsg(online ? '✓ Satış kaydedildi — buluta gönderiliyor.' : '✓ Çevrimdışı kaydedildi — bağlantı gelince gönderilecek.');
       await onCommitted();
     } catch (e) {
@@ -162,9 +164,9 @@ export function NewSale({ db, products, parties, online, onCommitted }: Props) {
   return (
     <section className="panel">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h2 style={{ margin: 0 }}>Yeni Satış</h2>
+        <h2 style={{ margin: 0 }}>Satış / Fatura Girişi</h2>
         <button onClick={() => void submit()} disabled={!canSubmit}>
-          {busy ? 'Kaydediliyor…' : 'Kaydet'} <span style={{ opacity: 0.75, fontSize: 12 }}>(Ctrl+Enter)</span>
+          {busy ? 'Kaydediliyor…' : 'Kaydet & Tamamla'} <span style={{ opacity: 0.75, fontSize: 12 }}>(Ctrl+Enter)</span>
         </button>
       </div>
 
@@ -206,6 +208,7 @@ export function NewSale({ db, products, parties, online, onCommitted }: Props) {
           <span><kbd>Tab</kbd> yatay</span>
           <span><kbd>F2</kbd> yeni satır</span>
           <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> kaydet</span>
+          <span style={{ marginLeft: 'auto' }}>Net = Brüt − Dara · Tutar = Net × Fiyat (net yoksa Kap × Fiyat)</span>
         </div>
 
         <div className="xg-wrap">
@@ -213,57 +216,52 @@ export function NewSale({ db, products, parties, online, onCommitted }: Props) {
             <thead>
               <tr>
                 <th className="xg-rownum">#</th>
-                <th style={{ width: '38%' }}>Ürün / Cins</th>
-                <th style={{ width: '15%' }}>Miktar</th>
-                <th style={{ width: '15%' }}>Birim</th>
-                <th style={{ width: '16%' }}>Fiyat</th>
-                <th style={{ width: '16%' }}>Tutar</th>
-                <th style={{ width: 36 }} />
+                <th style={{ width: '28%' }}>Ürün / Cins</th>
+                <th style={{ width: '9%' }}>Kap</th>
+                <th style={{ width: '12%' }}>Brüt (kg)</th>
+                <th style={{ width: '11%' }}>Dara (kg)</th>
+                <th style={{ width: '11%' }}>Net (kg)</th>
+                <th style={{ width: '12%' }}>Fiyat</th>
+                <th style={{ width: '13%' }}>Tutar</th>
+                <th style={{ width: 34 }} />
               </tr>
             </thead>
             <tbody>
               {rows.map((row, i) => (
                 <tr key={i}>
                   <td className="xg-rownum">{i + 1}</td>
-                  <td>
-                    <input ref={setRef(i, 0)} className="xg-cell" list="xg-products" value={row.productName}
-                      placeholder="ürün yaz…" onChange={(e) => onProductInput(i, e.target.value)} onKeyDown={(e) => onKeyDown(e, i, 0)} />
-                  </td>
-                  <td>
-                    <input ref={setRef(i, 1)} className="xg-cell xg-cell--num" inputMode="decimal" value={row.quantity}
-                      onChange={(e) => update(i, { quantity: e.target.value })} onKeyDown={(e) => onKeyDown(e, i, 1)} />
-                  </td>
-                  <td>
-                    <select ref={setRef(i, 2)} className="xg-cell" value={row.unitCode}
-                      onChange={(e) => update(i, { unitCode: Number(e.target.value) as UnitOfMeasure })} onKeyDown={(e) => onKeyDown(e, i, 2)}>
-                      {Object.entries(UNIT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                    </select>
-                  </td>
-                  <td>
-                    <input ref={setRef(i, 3)} className="xg-cell xg-cell--num" inputMode="decimal" value={row.unitPrice}
-                      onChange={(e) => update(i, { unitPrice: e.target.value })} onKeyDown={(e) => onKeyDown(e, i, 3)} />
-                  </td>
-                  <td><div className="xg-ro">{formatTRY(calc.lineTotals[i] || 0)}</div></td>
+                  <td><input ref={setRef(i, 0)} className="xg-cell" list="xg-products" value={row.productName} placeholder="ürün yaz…" onChange={(e) => onProductInput(i, e.target.value)} onKeyDown={(e) => onKeyDown(e, i, 0)} /></td>
+                  <td><input ref={setRef(i, 1)} className="xg-cell xg-cell--num" inputMode="decimal" value={row.kap} onChange={(e) => update(i, { kap: e.target.value })} onKeyDown={(e) => onKeyDown(e, i, 1)} /></td>
+                  <td><input ref={setRef(i, 2)} className="xg-cell xg-cell--num" inputMode="decimal" value={row.brut} onChange={(e) => update(i, { brut: e.target.value })} onKeyDown={(e) => onKeyDown(e, i, 2)} /></td>
+                  <td><input ref={setRef(i, 3)} className="xg-cell xg-cell--num" inputMode="decimal" value={row.dara} onChange={(e) => update(i, { dara: e.target.value })} onKeyDown={(e) => onKeyDown(e, i, 3)} /></td>
+                  <td><div className="xg-ro">{netKg(row) ? netKg(row).toLocaleString('tr-TR') : '—'}</div></td>
+                  <td><input ref={setRef(i, 4)} className="xg-cell xg-cell--num" inputMode="decimal" value={row.price} onChange={(e) => update(i, { price: e.target.value })} onKeyDown={(e) => onKeyDown(e, i, 4)} /></td>
+                  <td><div className="xg-ro">{formatTRY(calc.totals[i] || 0)}</div></td>
                   <td><button className="xg-del" tabIndex={-1} onClick={() => removeRow(i)} aria-label="Sil">✕</button></td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <datalist id="xg-products">
-            {products.map((p) => <option key={p.id} value={p.name} />)}
-          </datalist>
+          <datalist id="xg-products">{products.map((p) => <option key={p.id} value={p.name} />)}</datalist>
         </div>
 
         <button className="ghost" onClick={addRow} style={{ alignSelf: 'flex-start' }}>+ Satır ekle (F2)</button>
 
+        <div className="row" style={{ maxWidth: 420 }}>
+          <div><label>Hamaliye (₺)</label><input inputMode="decimal" value={hamaliye} onChange={(e) => setHamaliye(e.target.value)} /></div>
+          <div><label>Nakliye (₺)</label><input inputMode="decimal" value={nakliye} onChange={(e) => setNakliye(e.target.value)} /></div>
+        </div>
+
         <div className="xg-totals">
-          <div className="xg-total"><p className="xg-total__l">Brüt</p><p className="xg-total__v">{formatTRY(calc.brut)}</p></div>
+          <div className="xg-total"><p className="xg-total__l">Toplam Net</p><p className="xg-total__v">{calc.netKgTop.toLocaleString('tr-TR')} kg</p></div>
+          <div className="xg-total"><p className="xg-total__l">Brüt Tutar</p><p className="xg-total__v">{formatTRY(calc.brut)}</p></div>
           <div className="xg-total"><p className="xg-total__l">Komisyon %8</p><p className="xg-total__v">{formatTRY(calc.komisyon)}</p></div>
+          <div className="xg-total"><p className="xg-total__l">Masraf (Ham.+Nak.)</p><p className="xg-total__v">{formatTRY(calc.masraf)}</p></div>
           <div className="xg-total xg-total--net"><p className="xg-total__l">Müstahsil Net (tahmini)</p><p className="xg-total__v">{formatTRY(calc.net)}</p></div>
         </div>
 
         {msg && <p className="muted">{msg}</p>}
-        <p className="muted">Kesin komisyon/stopaj/rüsum sync sonrası sunucuda hesaplanır (kaynak-doğruluk backend).</p>
+        <p className="muted">Kesin komisyon/stopaj/rüsum sync sonrası sunucuda hesaplanır. Hamaliye/nakliye kalıcı kaydı Faz D (backend masraf alanları).</p>
       </div>
     </section>
   );
