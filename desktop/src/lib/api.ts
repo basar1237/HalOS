@@ -56,6 +56,16 @@ async function request<T>(
   return (await response.json()) as T;
 }
 
+/** Genel kimlikli GET — sekme bileşenleri Gateway'den okuma yapar (JWT + tenant sunucuda). */
+export function apiGet<T>(path: string): Promise<T> {
+  return request<T>(path);
+}
+
+/** Genel kimlikli POST. */
+export function apiPost<T>(path: string, body?: unknown): Promise<T> {
+  return request<T>(path, { method: 'POST', body });
+}
+
 export interface LoginResult {
   accessToken: string;
   tenantId?: string;
