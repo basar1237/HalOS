@@ -46,6 +46,14 @@ class ErpReadClient(Protocol):
         """Cari yaşlandırma raporunu döndürür (Finance /reports/aging)."""
         ...
 
+    def get_cash_registers(self, tenant_id: str, token: str) -> Any:
+        """Kasa listesini (bakiyeleriyle) döndürür (Finance /cash-registers)."""
+        ...
+
+    def get_cheques(self, tenant_id: str, token: str) -> Any:
+        """Çek/senet portföyünü döndürür (Finance /cheques)."""
+        ...
+
 
 class HttpErpReadClient:
     """httpx tabanlı gerçek ERP okuma istemcisi (SALT-OKUMA)."""
@@ -104,6 +112,12 @@ class HttpErpReadClient:
             {"asOf": _to_iso(as_of)},
         )
 
+    def get_cash_registers(self, tenant_id: str, token: str) -> Any:
+        return self._get(self._finance_base_url, "/cash-registers", token, {})
+
+    def get_cheques(self, tenant_id: str, token: str) -> Any:
+        return self._get(self._finance_base_url, "/cheques", token, {"page": "1", "pageSize": "200"})
+
 
 class StubErpReadClient:
     """Sabit, deterministik veri döndüren test/yapılandırmasız istemci (SALT-OKUMA).
@@ -136,4 +150,19 @@ class StubErpReadClient:
             "totalAmount": 81000.00,
             "totalAccountCount": 21,
             "currency": "TRY",
+        }
+
+    def get_cash_registers(self, tenant_id: str, token: str) -> Any:
+        return [
+            {"name": "Merkez Kasa", "kind": 1, "balance": 18500.00, "movementCount": 6},
+            {"name": "Rehin Kasa", "kind": 2, "balance": 4200.00, "movementCount": 2},
+        ]
+
+    def get_cheques(self, tenant_id: str, token: str) -> Any:
+        return {
+            "items": [
+                {"kind": 1, "bankName": "Ziraat", "amount": 15000.00, "dueDate": "2026-08-01", "status": 1},
+                {"kind": 2, "bankName": "Is Bankasi", "amount": 8000.00, "dueDate": "2026-07-05", "status": 2},
+            ],
+            "totalCount": 2,
         }

@@ -220,6 +220,28 @@ def ask(
             detail=f"ERP raporlarına erişilemedi: {exc}",
         ) from exc
 
+    # Kasa ve çek/senet EK bağlam (best-effort): erişilemezse cevabı engellemez.
+    try:
+        erp_data["cash_registers"] = erp.get_cash_registers(principal.tenant_id, principal.token)
+        used_sources.append("finance:/cash-registers")
+    except ErpUnavailableError as exc:
+        logger.info("Kasa okunamadı (opsiyonel bağlam): %s", exc)
+    try:
+        cheques_raw = erp.get_cheques(principal.tenant_id, principal.token)
+        items = cheques_raw.get("items", []) if isinstance(cheques_raw, dict) else (cheques_raw or [])
+        open_cheques = [c for c in items if c.get("status") in (1, 2)]  # portföyde / tahsile verildi
+        today_str = today.isoformat()
+        # LLM'e TÜM listeyi değil KOMPAKT özet gönder (hız + token tasarrufu).
+        erp_data["cheques_summary"] = {
+            "portfolio_count": len(open_cheques),
+            "portfolio_total": round(sum(float(c.get("amount", 0)) for c in open_cheques), 2),
+            "overdue_count": len([c for c in open_cheques if str(c.get("dueDate", ""))[:10] < today_str]),
+            "currency": "TRY",
+        }
+        used_sources.append("finance:/cheques")
+    except ErpUnavailableError as exc:
+        logger.info("Çek/senet okunamadı (opsiyonel bağlam): %s", exc)
+
     system_prompt, user_prompt = build_accountant_prompt(payload.question, erp_data)
 
     try:

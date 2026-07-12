@@ -534,6 +534,8 @@ services:
       ReverseProxy__Clusters__search__Destinations__primary__Address: http://search:8080/
       ReverseProxy__Clusters__notification__Destinations__primary__Address: http://notification:8080/
       ReverseProxy__Clusters__ai__Destinations__primary__Address: http://ai-gateway:8080/
+      # Yerel LLM (Ollama/CPU) cevabı uzun sürebilir; AI rotasında YARP timeout'u 3 dk'ya çıkar.
+      ReverseProxy__Clusters__ai__HttpRequest__ActivityTimeout: "00:03:00"
     ports:
       # docs/04 §3 BFF; Next.js konsol NEXT_PUBLIC_API_BASE_URL bunu gösterir.
       - "${GATEWAY_PORT:-5000}:8080"
