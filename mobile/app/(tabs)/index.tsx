@@ -58,9 +58,16 @@ export default function PanelScreen() {
   const cold = useQuery<PagedResult<ColdStorageUnit>>(
     '/api/coldchain/cold-storage-units?page=1&pageSize=100',
   );
+  const cash = useQuery<{ balance: number }[]>('/api/finance/cash-registers');
+  const cheques = useQuery<PagedResult<{ amount: number; status: number }>>(
+    '/api/finance/cheques?page=1&pageSize=200',
+  );
 
   const coldUnits = cold.data?.items ?? [];
   const alarmCount = coldUnits.filter(isBreaching).length;
+  const cashTotal = (cash.data ?? []).reduce((a, r) => a + (r.balance || 0), 0);
+  const openCheques = (cheques.data?.items ?? []).filter((c) => c.status === 1 || c.status === 2);
+  const chequeTotal = openCheques.reduce((a, c) => a + c.amount, 0);
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
@@ -85,6 +92,20 @@ export default function PanelScreen() {
         sub={aging.data ? `${aging.data.totalAccountCount} cari` : undefined}
         loading={aging.loading}
         error={aging.error}
+      />
+      <Card
+        title="Kasa Toplam Bakiye"
+        value={cash.data ? formatTRY(cashTotal) : undefined}
+        sub={cash.data ? `${cash.data.length} kasa` : undefined}
+        loading={cash.loading}
+        error={cash.error}
+      />
+      <Card
+        title="Çek/Senet Portföyü"
+        value={cheques.data ? formatTRY(chequeTotal) : undefined}
+        sub={cheques.data ? `${openCheques.length} açık` : undefined}
+        loading={cheques.loading}
+        error={cheques.error}
       />
       <Card
         title="Bugünkü Mal Geliş"
