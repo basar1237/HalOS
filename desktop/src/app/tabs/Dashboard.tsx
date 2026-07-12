@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiGet } from '../../lib/api';
 import { formatTRY } from '../../lib/format';
+import { Kpi, KpiGrid } from './ui';
 
 interface Daily { count: number; gross: number; commission: number; net: number }
 interface Dash { todayConsignmentCount: number; pendingSettlementTotal: number }
@@ -62,15 +63,11 @@ export function Dashboard() {
   return (
     <section className="panel">
       <h2>Kontrol Paneli</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16, marginTop: 8 }}>
+      <KpiGrid>
         {cards.map((c) => (
-          <div key={c.label} style={{ border: `1px solid ${c.danger ? '#fecaca' : 'var(--line)'}`, borderRadius: 10, padding: 16, background: c.danger ? '#fef2f2' : 'var(--panel-2)' }}>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>{c.label}</div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: c.danger ? 'var(--danger)' : 'inherit' }}>{c.value}</div>
-            {c.sub ? <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>{c.sub}</div> : null}
-          </div>
+          <Kpi key={c.label} label={c.label} value={c.value} sub={c.sub} danger={c.danger} />
         ))}
-      </div>
+      </KpiGrid>
     </section>
   );
 }

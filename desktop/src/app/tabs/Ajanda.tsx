@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiGet } from '../../lib/api';
 import { formatTRY } from '../../lib/format';
+import { Kpi, KpiGrid } from './ui';
 
 interface Cheque { id: string; kind: number; bankName: string; amount: number; dueDate: string; status: number }
 interface Paged<T> { items?: T[] }
@@ -43,11 +44,13 @@ export function Ajanda() {
     <section className="panel">
       <h2>Akıllı Ajanda — Hatırlatmalar</h2>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px,1fr))', gap: 14, margin: '8px 0 20px' }}>
-        <Kpi label="Vadesi geçmiş çek/senet" value={String(groups.overdue.length)} danger={groups.overdue.length > 0} />
-        <Kpi label="Bugün vadeli" value={String(groups.today.length)} />
-        <Kpi label="7 gün içinde" value={String(groups.week.length)} />
-        <Kpi label="Geciken alacak (cari)" value={formatTRY(overdueReceivable)} danger={overdueReceivable > 0} />
+      <div style={{ marginBottom: 20 }}>
+        <KpiGrid>
+          <Kpi label="Vadesi geçmiş çek/senet" value={String(groups.overdue.length)} danger={groups.overdue.length > 0} />
+          <Kpi label="Bugün vadeli" value={String(groups.today.length)} />
+          <Kpi label="7 gün içinde" value={String(groups.week.length)} />
+          <Kpi label="Geciken alacak (cari)" value={formatTRY(overdueReceivable)} danger={overdueReceivable > 0} />
+        </KpiGrid>
       </div>
 
       <Bucket title="⚠️ Vadesi Geçmiş" items={groups.overdue} tag="conflict" />
@@ -59,15 +62,6 @@ export function Ajanda() {
         <p className="muted">Açık (tahsil edilmemiş) çek/senet yok.</p>
       )}
     </section>
-  );
-}
-
-function Kpi({ label, value, danger }: { label: string; value: string; danger?: boolean }) {
-  return (
-    <div style={{ border: `1px solid ${danger ? '#fecaca' : 'var(--line)'}`, borderRadius: 10, padding: 16, background: danger ? '#fef2f2' : 'var(--panel-2)' }}>
-      <div style={{ fontSize: 12, color: 'var(--muted)' }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: danger ? 'var(--danger)' : 'inherit' }}>{value}</div>
-    </div>
   );
 }
 

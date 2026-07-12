@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { apiGet } from '../../lib/api';
+import { useMemo } from 'react';
 import { formatTRY } from '../../lib/format';
+import { useFetch } from '../../lib/useFetch';
+import { Kpi, KpiGrid } from './ui';
 
 interface SalesSummary { count: number; totalGross: number; totalCommission: number; totalDeductions: number; totalNet: number }
 interface CommissionIncome { totalCommission: number; totalVat: number; grandTotal: number }
@@ -11,21 +12,14 @@ interface Paged<T> { items?: T[] }
 const CH_STATUS: Record<number, string> = { 1: 'Portföyde', 2: 'Tahsile verildi', 3: 'Tahsil edildi', 4: 'Karşılıksız', 5: 'Ciro edildi', 6: 'Ödendi' };
 
 function iso(d: Date): string { return d.toISOString().slice(0, 10); }
+const TO = iso(new Date());
+const FROM = iso(new Date(Date.now() - 30 * 86400000));
 
 export function Raporlar() {
-  const [sum, setSum] = useState<SalesSummary | null>(null);
-  const [com, setCom] = useState<CommissionIncome | null>(null);
-  const [regs, setRegs] = useState<Register[]>([]);
-  const [cheques, setCheques] = useState<Cheque[]>([]);
-
-  useEffect(() => {
-    const to = new Date();
-    const from = new Date(Date.now() - 30 * 86400000);
-    apiGet<SalesSummary>(`/api/sales/reports/sales-summary?from=${iso(from)}&to=${iso(to)}`).then(setSum).catch(() => {});
-    apiGet<CommissionIncome>(`/api/sales/reports/commission-income?from=${iso(from)}&to=${iso(to)}`).then(setCom).catch(() => {});
-    apiGet<Register[]>('/api/finance/cash-registers').then(setRegs).catch(() => {});
-    apiGet<Paged<Cheque>>('/api/finance/cheques?page=1&pageSize=200').then((r) => setCheques(r.items ?? [])).catch(() => {});
-  }, []);
+  const sum = useFetch<SalesSummary>(`/api/sales/reports/sales-summary?from=${FROM}&to=${TO}`).data;
+  const com = useFetch<CommissionIncome>(`/api/sales/reports/commission-income?from=${FROM}&to=${TO}`).data;
+  const regs = useFetch<Register[]>('/api/finance/cash-registers').data ?? [];
+  const cheques = useFetch<Paged<Cheque>>('/api/finance/cheques?page=1&pageSize=200').data?.items ?? [];
 
   const cashTotal = regs.reduce((a, r) => a + r.balance, 0);
   const chequeStats = useMemo(() => {
@@ -44,20 +38,20 @@ export function Raporlar() {
       <h2>Raporlar — Son 30 Gün</h2>
 
       <h2 style={{ fontSize: 14, marginTop: 8 }}>Satış Özeti</h2>
-      <div style={grid}>
+      <KpiGrid>
         <Kpi label="Satış adedi" value={sum ? String(sum.count) : '…'} />
         <Kpi label="Brüt" value={sum ? formatTRY(sum.totalGross) : '…'} />
         <Kpi label="Komisyon" value={sum ? formatTRY(sum.totalCommission) : '…'} />
         <Kpi label="Kesinti (KDV hariç)" value={sum ? formatTRY(sum.totalDeductions) : '…'} />
         <Kpi label="Müstahsil net" value={sum ? formatTRY(sum.totalNet) : '…'} />
-      </div>
+      </KpiGrid>
 
       <h2 style={{ fontSize: 14, marginTop: 24 }}>Komisyon Geliri</h2>
-      <div style={grid}>
+      <KpiGrid>
         <Kpi label="Komisyon" value={com ? formatTRY(com.totalCommission) : '…'} />
         <Kpi label="Komisyon KDV" value={com ? formatTRY(com.totalVat) : '…'} />
         <Kpi label="Toplam gelir" value={com ? formatTRY(com.grandTotal) : '…'} />
-      </div>
+      </KpiGrid>
 
       <h2 style={{ fontSize: 14, marginTop: 24 }}>Kasa Durumu</h2>
       {regs.length === 0 ? <p className="muted">Kasa yok.</p> : (
@@ -71,11 +65,11 @@ export function Raporlar() {
       )}
 
       <h2 style={{ fontSize: 14, marginTop: 24 }}>Çek / Senet Portföyü ({chequeStats.count})</h2>
-      <div style={grid}>
+      <KpiGrid>
         <Kpi label="Alınan (toplam)" value={formatTRY(chequeStats.received)} />
         <Kpi label="Verilen (toplam)" value={formatTRY(chequeStats.issued)} />
         <Kpi label="Genel toplam" value={formatTRY(chequeStats.total)} />
-      </div>
+      </KpiGrid>
       {chequeStats.count > 0 && (
         <table style={{ marginTop: 12 }}>
           <thead><tr><th>Durum</th><th className="num">Adet</th><th className="num">Tutar</th></tr></thead>
@@ -87,16 +81,5 @@ export function Raporlar() {
         </table>
       )}
     </section>
-  );
-}
-
-const grid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px,1fr))', gap: 14 };
-
-function Kpi({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ border: '1px solid var(--line)', borderRadius: 10, padding: 16, background: 'var(--panel-2)' }}>
-      <div style={{ fontSize: 12, color: 'var(--muted)' }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700 }}>{value}</div>
-    </div>
   );
 }

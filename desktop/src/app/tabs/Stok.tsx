@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
-import { apiGet } from '../../lib/api';
 import { useLookups } from '../../lib/lookups';
+import { useFetch } from '../../lib/useFetch';
 
 interface StockItem { id: string; productId: string; warehouseId: string; quantityOnHand: number; reorderThreshold?: number | null }
 interface Paged<T> { items?: T[] }
@@ -8,30 +7,19 @@ const QTY = new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 3 });
 
 export function Stok() {
   const { productName, warehouseName } = useLookups();
-  const [rows, setRows] = useState<StockItem[]>([]);
-  const [err, setErr] = useState<string | null>(null);
-
-  useEffect(() => {
-    apiGet<Paged<StockItem>>('/api/inventory/stock?page=1&pageSize=200')
-      .then((r) => setRows(r.items ?? []))
-      .catch(() => setErr('Stok alınamadı.'));
-  }, []);
+  const { data, error } = useFetch<Paged<StockItem>>('/api/inventory/stock?page=1&pageSize=200');
+  const rows = data?.items ?? [];
 
   return (
     <section className="panel">
       <h2>Stok &amp; Depo ({rows.length})</h2>
-      {err && <p className="error">{err}</p>}
+      {error && <p className="error">{error}</p>}
       {rows.length === 0 ? (
         <p className="muted">Stok kaydı yok.</p>
       ) : (
         <table>
           <thead>
-            <tr>
-              <th>Ürün</th>
-              <th>Depo</th>
-              <th className="num">Kalan</th>
-              <th>Durum</th>
-            </tr>
+            <tr><th>Ürün</th><th>Depo</th><th className="num">Kalan</th><th>Durum</th></tr>
           </thead>
           <tbody>
             {rows.map((s) => {
